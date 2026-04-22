@@ -24,6 +24,16 @@ export const orderService = {
     return data;
   },
 
+  async createOrder(orderData) {
+    const { data, error } = await supabase
+      .from('orders')
+      .insert([orderData])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
   async updateOrderStatus(id, status) {
     if (!ORDER_STATUSES.includes(status)) throw new Error('Invalid status');
     const { data, error } = await supabase

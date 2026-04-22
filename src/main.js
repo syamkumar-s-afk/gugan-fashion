@@ -980,9 +980,36 @@ const renderCart = () => {
   window.app.removeItem = (id, variant) => {
     if (confirm('Remove item?')) { actions.removeFromCart(id, variant); renderCart(); renderNavbar(); }
   };
-  document.getElementById('place-order-btn').onclick = () => {
-    if (!store.getState().user) { renderAuthModal('login'); return; }
-    toast.info('Order placed! (Payment gateway coming soon)');
+  document.getElementById('place-order-btn').onclick = async () => {
+    const user = store.getState().user;
+    if (!user) { renderAuthModal('login'); return; }
+
+    const btn = document.getElementById('place-order-btn');
+    btn.disabled = true;
+    btn.textContent = 'Processing...';
+
+    try {
+      const orderData = {
+        user_id: user.id,
+        customer_details: { 
+          name: user.profile?.full_name || user.user_metadata?.full_name || user.email,
+          email: user.email 
+        },
+        items: cart,
+        total_amount: total,
+        status: 'ORDER_PLACED'
+      };
+      
+      await orderService.createOrder(orderData);
+      actions.clearCart();
+      toast.success('Order placed successfully!');
+      renderCart();
+      renderNavbar();
+    } catch (err) {
+      toast.error('Failed to place order: ' + err.message);
+      btn.disabled = false;
+      btn.textContent = 'PLACE ORDER';
+    }
   };
 };
 

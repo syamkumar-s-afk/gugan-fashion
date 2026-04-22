@@ -75,6 +75,11 @@ export const actions = {
     localStorage.setItem('cart', JSON.stringify(newCart));
   },
 
+  clearCart: () => {
+    store.setState({ cart: [] });
+    localStorage.removeItem('cart');
+  },
+
   openAuthModal: (type) => store.setState({ isModalOpen: true, modalType: type }),
   closeModal: () => store.setState({ isModalOpen: false, modalType: null })
 };
