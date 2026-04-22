@@ -319,7 +319,9 @@ const adminDashboard = async (container) => {
       const latest = products.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))[0];
       latestUpdate = new Date(latest.updated_at).toLocaleString();
     }
-  } catch (_) {}
+  } catch (err) {
+    console.error('Error fetching dashboard stats:', err);
+  }
 
   container.innerHTML = `
     <div class="admin-page-header">
@@ -1073,4 +1075,8 @@ const renderBestSellers = async () => {
   } catch (err) { list.innerHTML = '<p>Could not load products.</p>'; }
 };
 
-document.addEventListener('DOMContentLoaded', initApp);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
