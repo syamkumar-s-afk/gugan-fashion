@@ -46,8 +46,11 @@ export const authService = {
   },
 
   async getCurrentUser() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    // Fast path: use local session to avoid network latency if possible
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return null;
+
+    const user = session.user;
 
     const { data: profile } = await supabase
       .from('profiles')
@@ -57,6 +60,7 @@ export const authService = {
 
     return { ...user, profile };
   },
+
 
   onAuthStateChange(callback) {
     return supabase.auth.onAuthStateChange(callback);

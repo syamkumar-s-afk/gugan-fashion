@@ -149,9 +149,11 @@ const resolveImageUrl = async (container, bucket = 'products') => {
 // ─────────────────────────────────────────────
 const initApp = async () => {
   try {
-    const user = await authService.getCurrentUser();
+    const [user, config] = await Promise.all([
+      authService.getCurrentUser(),
+      configService.getHomepageConfig()
+    ]);
     actions.setUser(user);
-    const config = await configService.getHomepageConfig();
     store.setState({ homepage: config });
   } catch (err) {
     console.error('Init failed:', err);
