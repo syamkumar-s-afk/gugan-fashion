@@ -1,10 +1,14 @@
 import { supabase } from './supabase';
 
-export const validatePassword = (password) => {
+export const validateSignupEmail = (email = '') => {
+  const trimmed = String(email).trim();
   const errors = [];
-  if (password.length < 8) errors.push("Minimum 8 characters required.");
-  if (!/\d/.test(password)) errors.push("At least 1 number required.");
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) errors.push("At least 1 special character required.");
+
+  if (trimmed.length < 8) errors.push('Email must be at least 8 characters.');
+  if (!/\d/.test(trimmed)) errors.push('Email must include at least 1 number.');
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(trimmed)) errors.push('Email must include at least 1 special character.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) errors.push('Enter a valid email address.');
+
   return {
     isValid: errors.length === 0,
     errors
@@ -13,8 +17,8 @@ export const validatePassword = (password) => {
 
 export const authService = {
   async signUp(email, password, fullName) {
-    const { isValid, errors } = validatePassword(password);
-    if (!isValid) throw new Error(errors.join(" "));
+    const { isValid, errors } = validateSignupEmail(email);
+    if (!isValid) throw new Error(errors.join(' '));
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -46,21 +50,24 @@ export const authService = {
   },
 
   async getCurrentUser() {
-    // Fast path: use local session to avoid network latency if possible
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError;
     if (!session?.user) return null;
 
     const user = session.user;
-
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
-    return { ...user, profile };
+    // Missing profile row should not collapse auth state.
+    if (profileError) {
+      return { ...user, profile: null };
+    }
+
+    return { ...user, profile: profile || null };
   },
-
 
   onAuthStateChange(callback) {
     return supabase.auth.onAuthStateChange(callback);
