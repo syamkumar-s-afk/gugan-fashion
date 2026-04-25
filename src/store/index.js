@@ -26,12 +26,22 @@ class Store {
   }
 }
 
+const readStoredArray = (key) => {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch (_) {
+    localStorage.removeItem(key);
+    return [];
+  }
+};
+
 // Initial App State
 export const store = new Store({
   user: null,
   isAuthLoading: true,
-  cart: JSON.parse(localStorage.getItem('cart')) || [],
-  wishlist: JSON.parse(localStorage.getItem('wishlist')) || [],
+  cart: readStoredArray('cart'),
+  wishlist: readStoredArray('wishlist'),
   products: [],
   isModalOpen: false,
   modalType: null, // 'login' | 'signup'
@@ -93,8 +103,8 @@ export const actions = {
     store.setState({ wishlist: newWishlist });
     localStorage.setItem('wishlist', JSON.stringify(newWishlist));
 
-    if (exists) toast.info('Removed from wishlist');
-    else toast.success('Added to wishlist');
+    if (exists) window.toast?.info?.('Removed from wishlist');
+    else window.toast?.success?.('Added to wishlist');
   },
 
   openAuthModal: (type) => store.setState({ isModalOpen: true, modalType: type }),

@@ -2,17 +2,20 @@ import { supabase } from './supabase';
 
 export const configService = {
   async getHomepageConfig() {
-    const { data, error } = await supabase
-      .from('homepage_config')
-      .select('*');
-    
-    if (error) throw error;
-    
-    // Transform array into object for easier access: { hero: {...}, categories: {...} }
-    return data.reduce((acc, item) => {
-      acc[item.id] = item.data;
-      return acc;
-    }, {});
+    try {
+      const { data, error } = await supabase
+        .from('homepage_config')
+        .select('*');
+
+      if (error) throw error;
+
+      return (data || []).reduce((acc, item) => {
+        acc[item.id] = item.data;
+        return acc;
+      }, {});
+    } catch (_) {
+      return {};
+    }
   },
 
   async updateConfig(id, configData) {

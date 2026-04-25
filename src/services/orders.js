@@ -6,12 +6,16 @@ export const orderService = {
   ORDER_STATUSES,
 
   async getOrders() {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    } catch (_) {
+      return [];
+    }
   },
 
   async getOrderById(id) {

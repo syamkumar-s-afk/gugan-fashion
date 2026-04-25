@@ -1,4 +1,4 @@
-import './styles/global.css';
+import './styles/enterprise.css';
 import { store, actions } from './store';
 import { authService, validateSignupEmail } from './services/auth';
 import { ProductCard } from './components/ProductCard';
@@ -6,6 +6,378 @@ import { configService } from './services/config';
 import { productService } from './services/products';
 import { storageService } from './services/storage';
 import { orderService } from './services/orders';
+import { FALLBACK_IMAGE_URL, getImageUrl } from './utils/media';
+import logoUrl from './assets/logo.png';
+import heroDefaultUrl from './assets/hero.png';
+
+const getDiscountedPrice = (product = {}) => {
+  const price = Number(product.price) || 0;
+  const discount = Number(product.discount) || 0;
+  return discount > 0 ? Math.round(price * (1 - discount / 100)) : price;
+};
+
+const escapeHtml = (value = '') => String(value)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#039;');
+
+const escapeAttr = escapeHtml;
+const defaultImageFallback = FALLBACK_IMAGE_URL || heroDefaultUrl;
+
+const safeImage = (value, fallback = defaultImageFallback) => getImageUrl(value, fallback);
+
+const safeAppLink = (value, fallback = '/shop') => {
+  if (typeof value !== 'string') return fallback;
+  const trimmed = value.trim();
+  return trimmed.startsWith('/') ? trimmed : fallback;
+};
+
+const safeMediaLink = (value, fallback = '') => {
+  if (typeof value !== 'string') return fallback;
+  const trimmed = value.trim();
+  return /^https?:\/\//i.test(trimmed) ? trimmed : fallback;
+};
+
+const CATEGORY_DEFINITIONS = [
+  { name: 'Men', image: 'https://images.unsplash.com/photo-1516826957135-700dedea698c?q=80&w=600&auto=format&fit=crop' },
+  { name: 'Women', image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=600&auto=format&fit=crop' },
+  { name: 'Girls', image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600&auto=format&fit=crop' },
+  { name: 'Boys', image: 'https://images.unsplash.com/photo-1503919545889-aef636e10ad4?q=80&w=600&auto=format&fit=crop' },
+  { name: 'Electronics', image: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?q=80&w=600&auto=format&fit=crop' },
+  { name: 'Footwear', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=600&auto=format&fit=crop' },
+  { name: 'Stationeries', image: 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?q=80&w=600&auto=format&fit=crop' },
+  { name: 'Accessories', image: 'https://images.unsplash.com/photo-1617038220319-276d3cfab638?q=80&w=600&auto=format&fit=crop' },
+];
+
+const CATEGORY_NAMES = CATEGORY_DEFINITIONS.map((category) => category.name);
+const DESKTOP_NAV_CATEGORIES = ['Men', 'Women', 'Girls', 'Boys', 'Accessories'];
+const CATEGORY_LINKS = Object.fromEntries(CATEGORY_DEFINITIONS.map((category) => [category.name, `/shop?category=${encodeURIComponent(category.name)}`]));
+const CATEGORY_IMAGE_FALLBACKS = {
+  ...Object.fromEntries(CATEGORY_DEFINITIONS.map((category) => [category.name.toUpperCase(), category.image])),
+  KIDS: 'https://images.unsplash.com/photo-1503919545889-aef636e10ad4?q=80&w=600&auto=format&fit=crop',
+};
+const DEFAULT_HERO_SLIDES = [
+  heroDefaultUrl,
+  'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?q=80&w=1600&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1445205170230-053b83016050?q=80&w=1600&auto=format&fit=crop',
+];
+const DEFAULT_SHOWCASE_CATEGORIES = ['Men', 'Women', 'Boys', 'Girls', 'Electronics', 'Footwear', 'Accessories', 'Stationeries'];
+const DEFAULT_HOME_VIDEO_URL = 'https://samplelib.com/lib/preview/mp4/sample-5s.mp4';
+const TESTIMONIALS = [
+  { name: 'Aarav S.', text: 'The fit and finish felt premium right away. Delivery was quick and the styling looked exactly like the photos.' },
+  { name: 'Nithya R.', text: 'Loved the curation. I found outfits for myself and my kids in one place without scrolling through clutter.' },
+  { name: 'Sana M.', text: 'The accessories and footwear picks are surprisingly strong. The whole store feels more polished now.' },
+  { name: 'Rahul K.', text: 'Checkout was easy and the products looked better in person. I would definitely order again.' },
+  { name: 'Divya P.', text: 'The collections are clear, the pricing feels fair, and the homepage now makes browsing much faster.' },
+];
+
+const getDefaultCategoryItems = () => CATEGORY_DEFINITIONS.map((category) => ({
+  name: category.name,
+  link: CATEGORY_LINKS[category.name],
+  image: category.image,
+}));
+
+const normalizeCategoryItems = (items = []) => {
+  const existingByName = new Map();
+  items.forEach((item) => {
+    const rawName = String(item?.name || '').trim();
+    if (!rawName) return;
+    const normalizedName = rawName.toLowerCase() === 'kids'
+      ? null
+      : CATEGORY_DEFINITIONS.find((category) => category.name.toLowerCase() === rawName.toLowerCase())?.name || rawName;
+    if (!normalizedName || existingByName.has(normalizedName)) return;
+    existingByName.set(normalizedName, {
+      ...item,
+      name: normalizedName,
+      link: safeAppLink(item?.link, CATEGORY_LINKS[normalizedName] || '/shop'),
+      image: item?.image || CATEGORY_IMAGE_FALLBACKS[normalizedName.toUpperCase()] || defaultImageFallback,
+    });
+  });
+
+  CATEGORY_DEFINITIONS.forEach((category) => {
+    if (!existingByName.has(category.name)) {
+      existingByName.set(category.name, {
+        name: category.name,
+        link: CATEGORY_LINKS[category.name],
+        image: category.image,
+      });
+    }
+  });
+
+  return CATEGORY_DEFINITIONS.map((category) => existingByName.get(category.name)).filter(Boolean);
+};
+
+const initCategoryMarquee = () => {
+  const marquee = document.querySelector('.marquee-container');
+  const track = marquee?.querySelector('.circle-track');
+  if (!marquee || !track || marquee.dataset.ready === 'true') return;
+
+  const firstSet = track.querySelector('.circle-grid');
+  if (!firstSet) return;
+
+  marquee.dataset.ready = 'true';
+
+  let isDragging = false;
+  let moved = false;
+  let startX = 0;
+  let startScrollLeft = 0;
+  let rafId = 0;
+  let autoScrollPaused = false;
+
+  const getLoopWidth = () => firstSet.scrollWidth;
+  const normalizeScroll = () => {
+    const loopWidth = getLoopWidth();
+    if (!loopWidth) return;
+    if (marquee.scrollLeft >= loopWidth) marquee.scrollLeft -= loopWidth;
+    if (marquee.scrollLeft < 0) marquee.scrollLeft += loopWidth;
+  };
+
+  const tick = () => {
+    if (!autoScrollPaused) {
+      marquee.scrollLeft += 0.55;
+      normalizeScroll();
+    }
+    rafId = window.requestAnimationFrame(tick);
+  };
+
+  const pause = () => { autoScrollPaused = true; };
+  const resume = () => { if (!isDragging) autoScrollPaused = false; };
+
+  marquee.scrollLeft = getLoopWidth() / 2;
+  rafId = window.requestAnimationFrame(tick);
+
+  marquee.addEventListener('mouseenter', pause);
+  marquee.addEventListener('mouseleave', resume);
+  marquee.addEventListener('pointerdown', (event) => {
+    isDragging = true;
+    moved = false;
+    autoScrollPaused = true;
+    startX = event.clientX;
+    startScrollLeft = marquee.scrollLeft;
+    marquee.classList.add('is-dragging');
+    marquee.setPointerCapture(event.pointerId);
+  });
+
+  marquee.addEventListener('pointermove', (event) => {
+    if (!isDragging) return;
+    const delta = event.clientX - startX;
+    if (Math.abs(delta) > 6) moved = true;
+    marquee.scrollLeft = startScrollLeft - delta;
+    normalizeScroll();
+  });
+
+  const endDrag = (event) => {
+    if (!isDragging) return;
+    isDragging = false;
+    marquee.classList.remove('is-dragging');
+    if (marquee.hasPointerCapture(event.pointerId)) marquee.releasePointerCapture(event.pointerId);
+    window.setTimeout(() => { moved = false; }, 0);
+    resume();
+  };
+
+  marquee.addEventListener('pointerup', endDrag);
+  marquee.addEventListener('pointercancel', endDrag);
+
+  track.querySelectorAll('.circle-item').forEach((item) => {
+    item.addEventListener('click', (event) => {
+      if (moved) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    });
+  });
+
+  window.addEventListener('resize', normalizeScroll);
+  marquee.__cleanupMarquee = () => {
+    if (rafId) window.cancelAnimationFrame(rafId);
+  };
+};
+
+const getHeroSlides = (hero = {}) => {
+  const configuredSlides = Array.isArray(hero?.slides)
+    ? hero.slides.map((slide) => (typeof slide === 'string' ? slide : slide?.image)).filter(Boolean)
+    : [];
+  const configuredImages = Array.isArray(hero?.images) ? hero.images.filter(Boolean) : [];
+  const primaryImage = hero?.image ? [hero.image] : [];
+  return [...new Set([...configuredSlides, ...configuredImages, ...primaryImage, ...DEFAULT_HERO_SLIDES])];
+};
+
+const initHeroRotator = (slides = [], fallback = heroDefaultUrl) => {
+  const heroCard = document.getElementById('hero-cta');
+  const heroImage = heroCard?.querySelector('.m-hero-image');
+  const dots = heroCard ? Array.from(heroCard.querySelectorAll('.m-hero-dots span')) : [];
+  if (!heroCard || !heroImage || slides.length <= 1) return;
+
+  let index = 0;
+  let intervalId = 0;
+  let pointerStartX = 0;
+  let pointerStartY = 0;
+  let isDragging = false;
+  let moved = false;
+
+  const paint = () => {
+    heroImage.classList.add('is-transitioning');
+    window.setTimeout(() => {
+      heroImage.src = safeImage(slides[index], fallback);
+      heroImage.dataset.fallbackSrc = fallback;
+      dots.forEach((dot, dotIndex) => dot.classList.toggle('active', dotIndex === index));
+      heroImage.classList.remove('is-transitioning');
+    }, 180);
+  };
+
+  const goTo = (nextIndex) => {
+    index = (nextIndex + slides.length) % slides.length;
+    paint();
+  };
+
+  const advance = () => {
+    goTo(index + 1);
+  };
+
+  const restartInterval = () => {
+    window.clearInterval(intervalId);
+    intervalId = window.setInterval(advance, 3500);
+  };
+
+  restartInterval();
+  heroCard.addEventListener('mouseenter', () => window.clearInterval(intervalId));
+  heroCard.addEventListener('mouseleave', () => {
+    if (!isDragging) restartInterval();
+  });
+
+  heroCard.addEventListener('pointerdown', (event) => {
+    isDragging = true;
+    moved = false;
+    pointerStartX = event.clientX;
+    pointerStartY = event.clientY;
+    window.clearInterval(intervalId);
+    heroCard.classList.add('is-dragging');
+  });
+
+  heroCard.addEventListener('pointermove', (event) => {
+    if (!isDragging) return;
+    const deltaX = event.clientX - pointerStartX;
+    const deltaY = event.clientY - pointerStartY;
+    if (Math.abs(deltaX) > 8 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      moved = true;
+    }
+  });
+
+  const endDrag = (event) => {
+    if (!isDragging) return;
+    const deltaX = event.clientX - pointerStartX;
+    const deltaY = event.clientY - pointerStartY;
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      goTo(index + (deltaX < 0 ? 1 : -1));
+    }
+    isDragging = false;
+    heroCard.classList.remove('is-dragging');
+    window.setTimeout(() => { moved = false; }, 0);
+    restartInterval();
+  };
+
+  heroCard.addEventListener('pointerup', endDrag);
+  heroCard.addEventListener('pointercancel', endDrag);
+
+  heroCard.addEventListener('click', (event) => {
+    if (moved) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, true);
+
+  dots.forEach((dot, dotIndex) => {
+    dot.addEventListener('click', (event) => {
+      event.stopPropagation();
+      goTo(dotIndex);
+      restartInterval();
+    });
+  });
+
+  heroCard.__cleanupHero = () => {
+    window.clearInterval(intervalId);
+  };
+};
+
+const renderShowcaseProductCard = (product = {}) => {
+  const safeId = escapeAttr(product.id || '');
+  const safeName = escapeHtml(product.name || 'Untitled Product');
+  const safeBrand = escapeHtml(product.brand || 'GUGAN');
+  const safeCategory = escapeHtml(product.category || 'Category');
+  const safePrice = Number(product.price) || 0;
+  const safeDiscount = Number(product.discount) || 0;
+  const discountedPrice = safeDiscount ? Math.round(safePrice * (1 - safeDiscount / 100)) : null;
+
+  return `
+    <article class="showcase-card product-card" data-id="${safeId}">
+      <div class="showcase-card-image">
+        <img src="${escapeAttr(safeImage(product.images))}" alt="${safeName}" loading="lazy" data-fallback-src="${escapeAttr(defaultImageFallback)}">
+        <span class="showcase-category-pill">${safeCategory}</span>
+      </div>
+      <div class="showcase-card-info">
+        <p class="showcase-category-text">${safeCategory}</p>
+        <h3>${safeBrand}</h3>
+        <p>${safeName}</p>
+        <div class="showcase-price-row">
+          <span class="showcase-price">Rs. ${(discountedPrice || safePrice).toLocaleString()}</span>
+          ${discountedPrice ? `<span class="showcase-original-price">Rs. ${safePrice.toLocaleString()}</span>` : ''}
+        </div>
+      </div>
+    </article>
+  `;
+};
+
+const initTestimonialsMarquee = () => {
+  const marquee = document.querySelector('.testimonials-marquee');
+  const track = marquee?.querySelector('.testimonials-track');
+  const firstSet = track?.querySelector('.testimonials-group');
+  if (!marquee || !track || !firstSet || marquee.dataset.ready === 'true') return;
+
+  marquee.dataset.ready = 'true';
+  let rafId = 0;
+
+  const normalizeScroll = () => {
+    const loopWidth = firstSet.scrollWidth;
+    if (!loopWidth) return;
+    if (marquee.scrollLeft >= loopWidth) marquee.scrollLeft -= loopWidth;
+  };
+
+  const step = () => {
+    marquee.scrollLeft += 0.45;
+    normalizeScroll();
+    rafId = window.requestAnimationFrame(step);
+  };
+
+  marquee.scrollLeft = 0;
+  rafId = window.requestAnimationFrame(step);
+
+  marquee.addEventListener('mouseenter', () => window.cancelAnimationFrame(rafId));
+  marquee.addEventListener('mouseleave', () => {
+    window.cancelAnimationFrame(rafId);
+    rafId = window.requestAnimationFrame(step);
+  });
+
+  marquee.__cleanupTestimonials = () => {
+    if (rafId) window.cancelAnimationFrame(rafId);
+  };
+};
+
+const installGlobalImageFallbacks = () => {
+  if (window.__guganImageFallbacksInstalled) return;
+  window.__guganImageFallbacksInstalled = true;
+  document.addEventListener('error', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLImageElement)) return;
+
+    const fallback = target.dataset.fallbackSrc || defaultImageFallback;
+    if (!fallback || target.dataset.fallbackApplied === 'true') return;
+
+    target.dataset.fallbackApplied = 'true';
+    target.src = fallback;
+  }, true);
+};
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // TOAST SYSTEM
@@ -57,6 +429,7 @@ window.app.toggleWishlist = (id) => {
   renderNavbar();
   const path = window.location.pathname;
   if (path === '/shop') renderShop();
+  else if (path === '/wishlist') renderWishlist();
   else if (path.startsWith('/product/')) renderProductDetail(id);
   else renderHome();
 };
@@ -88,7 +461,7 @@ const createImageInput = (currentUrl = '', bucket = 'products') => {
       <div class="img-panel" data-panel="upload">
         <input type="file" id="${id}-file" class="file-input" accept="image/*">
         <label for="${id}-file" class="file-label">
-          <span>ðŸ“‚ Choose image file</span>
+          <span>&#128194; Choose image file</span>
           <span class="file-name" id="${id}-filename">No file chosen</span>
         </label>
       </div>
@@ -194,32 +567,33 @@ const renderAuthPage = (type = 'login') => {
     <section class="auth-page">
       <div class="auth-page-card">
         <div class="auth-header">
-          <h2>${isSignup ? 'Create Account' : 'Login'}</h2>
-          <p>${isSignup ? 'Join Gugan Fashions to start shopping.' : 'Welcome back to Gugan Fashions.'}</p>
+          <span class="auth-badge">GUGAN FASHIONS</span>
+          <h2>${isSignup ? 'Create Your Account' : 'Welcome Back'}</h2>
+          <p>${isSignup ? 'Join our exclusive community.' : 'Log in to your luxury fashion hub.'}</p>
         </div>
         <form id="auth-route-form" class="auth-form">
           ${isSignup ? `
             <div class="form-group">
               <label for="auth-full-name">Full Name</label>
-              <input type="text" id="auth-full-name" placeholder="Enter your name" required>
+              <input type="text" id="auth-full-name" placeholder="E.g. Alexander McQueen" required>
             </div>
           ` : ''}
           <div class="form-group">
-            <label for="auth-email">Email</label>
-            <input type="email" id="auth-email" placeholder="Enter your email" required>
+            <label for="auth-email">Email Address</label>
+            <input type="email" id="auth-email" placeholder="name@luxury.com" required>
             <div id="auth-email-errors" class="validation-info"></div>
           </div>
           <div class="form-group">
             <label for="auth-password">Password</label>
-            <input type="password" id="auth-password" placeholder="Enter password" required>
+            <input type="password" id="auth-password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" required>
             <div id="auth-form-error" class="validation-info"></div>
           </div>
-          <button type="submit" class="submit-btn" id="auth-route-submit">${isSignup ? 'SIGN UP' : 'LOGIN'}</button>
+          <button type="submit" class="btn-gold-lg" id="auth-route-submit">${isSignup ? 'CREATE ACCOUNT' : 'LOG IN'}</button>
         </form>
         <p class="auth-page-switch">
           ${isSignup
-            ? 'Already have an account? <a href="/login" id="switch-auth-route">Login</a>'
-            : 'New to Gugan Fashions? <a href="/signup" id="switch-auth-route">Create Account</a>'}
+            ? 'Already a member? <a href="/login" id="switch-auth-route">Login here</a>'
+            : 'New to Gugan Fashions? <a href="/signup" id="switch-auth-route">Join now</a>'}
         </p>
       </div>
     </section>
@@ -283,6 +657,7 @@ const renderAuthPage = (type = 'login') => {
 const handleRoute = () => {
   const path = window.location.pathname;
   if (!document.getElementById('router-view')) return;
+  document.body.classList.toggle('admin-mode', path.startsWith('/admin'));
 
   const { user, isAuthLoading } = store.getState();
 
@@ -301,16 +676,68 @@ const handleRoute = () => {
   }
 
   if (path === '/shop') renderShop();
+  else if (path === '/wishlist') renderWishlist();
   else if (path.startsWith('/admin')) renderAdmin(path);
   else if (path.startsWith('/product/')) renderProductDetail(path.split('/').pop());
   else if (path === '/cart') renderCart();
   else renderHome();
 };
 
+const renderWishlist = async () => {
+  const main = document.getElementById('router-view');
+  const wishlistIds = store.getState().wishlist || [];
+
+  if (wishlistIds.length === 0) {
+    main.innerHTML = `
+      <div class="container py-xl text-center">
+        <div style="font-size:4rem">&#9825;</div>
+        <h2 style="margin-top:1rem">Your Wishlist is Empty</h2>
+        <p style="margin-top:0.5rem;color:var(--c-gray-400)">Save items you love to your wishlist.</p>
+        <button class="btn-gold mt-lg" onclick="app.navigate('/shop')">EXPLORE SHOP</button>
+      </div>`;
+    return;
+  }
+
+  main.innerHTML = `
+    <div class="container py-xl">
+      <div class="shop-header mb-xl">
+        <h1 class="pdp-title">YOUR WISHLIST</h1>
+        <p class="item-count">${wishlistIds.length} Items</p>
+      </div>
+      <div class="product-grid" id="wishlist-grid">
+        <div class="loading">Loading wishlist items...</div>
+      </div>
+    </div>
+  `;
+
+  try {
+    const products = await Promise.all(
+      wishlistIds.map(id => productService.getProductById(id).catch(() => null))
+    );
+    const validProducts = products.filter(p => p !== null);
+
+    const grid = document.getElementById('wishlist-grid');
+    if (validProducts.length === 0) {
+      grid.innerHTML = '<p>No items found.</p>';
+      return;
+    }
+
+    grid.innerHTML = validProducts.map(p => ProductCard(p)).join('');
+
+    // Attach click handlers
+    grid.querySelectorAll('.product-card').forEach(card => {
+       card.onclick = () => navigate(`/product/${card.dataset.id}`);
+    });
+  } catch (err) {
+    console.error('Failed to load wishlist:', err);
+  }
+};
+
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // APP INIT
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const initApp = async () => {
+  installGlobalImageFallbacks();
   actions.setAuthLoading(true);
   try {
     const [userResult, configResult] = await Promise.allSettled([
@@ -321,17 +748,12 @@ const initApp = async () => {
     if (userResult.status === 'fulfilled') {
       actions.setUser(userResult.value);
     } else {
-      console.error('Failed to restore user session:', userResult.reason);
       actions.setUser(null);
     }
 
     if (configResult.status === 'fulfilled') {
       store.setState({ homepage: configResult.value });
-    } else {
-      console.error('Failed to load homepage config:', configResult.reason);
     }
-  } catch (err) {
-    console.error('Init failed:', err);
   } finally {
     actions.setAuthLoading(false);
   }
@@ -342,7 +764,6 @@ const initApp = async () => {
         const user = await authService.getCurrentUser();
         actions.setUser(user);
       } catch (err) {
-        console.error('Auth refresh failed:', err);
         actions.setUser(null);
       }
     } else {
@@ -350,14 +771,77 @@ const initApp = async () => {
     }
     actions.setAuthLoading(false);
     renderNavbar();
+    renderFooter();
     handleRoute();
   });
 
-  store.subscribe((state) => renderNavbar(state.user));
+  store.subscribe((state) => {
+    renderNavbar(state.user);
+    renderFooter();
+  });
 
   window.onpopstate = handleRoute;
   renderNavbar();
+  renderFooter();
   handleRoute();
+};
+
+const renderFooter = () => {
+  const footer = document.getElementById('main-footer');
+  if (!footer) return;
+  footer.innerHTML = `
+    <div class="container">
+      <div class="footer-cols">
+        <div class="footer-brand">
+          <img src="${logoUrl}" alt="GUGAN" style="height: 40px; width: auto; margin-bottom: 20px;">
+          <p>Redefining modern fashion with minimalist luxury since 2024.</p>
+          <div class="social-links">
+            <a href="#" aria-label="Facebook">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
+            </a>
+            <a href="#" aria-label="Instagram">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"></line></svg>
+            </a>
+            <a href="#" aria-label="Twitter">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path></svg>
+            </a>
+          </div>
+        </div>
+        <div class="footer-col">
+          <h4>SHOP</h4>
+          <ul>
+            ${CATEGORY_NAMES.map((category) => `<li><a href="${CATEGORY_LINKS[category]}">${escapeHtml(category)}</a></li>`).join('')}
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>SUPPORT</h4>
+          <ul>
+            <li><a href="#">Contact Us</a></li>
+            <li><a href="#">Shipping</a></li>
+            <li><a href="#">Returns</a></li>
+            <li><a href="#">FAQs</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>LEGAL</h4>
+          <ul>
+            <li><a href="#">Privacy Policy</a></li>
+            <li><a href="#">Terms of Service</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        &copy; 2026 GUGAN FASHIONS. ALL RIGHTS RESERVED.
+      </div>
+    </div>
+  `;
+
+  footer.querySelectorAll('a[href^="/"]').forEach((link) => {
+    link.onclick = (e) => {
+      e.preventDefault();
+      navigate(link.getAttribute('href'));
+    };
+  });
 };
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -369,77 +853,92 @@ const renderNavbar = (user = store.getState().user) => {
 
   header.innerHTML = `
     <nav class="container nav-wrapper">
-      <button class="nav-mobile-toggle" id="nav-mobile-toggle" aria-label="Toggle navigation"><span></span><span></span><span></span></button>
-      <div class="nav-left">
-        <a href="/" class="logo" id="logo-link">GUGAN</a>
-        <ul class="nav-links">
-          <li><a href="/shop" id="shop-link">SHOP ALL</a></li>
-          <li><a href="/shop?category=Men" id="men-link">MEN</a></li>
-          <li><a href="/shop?category=Women" id="women-link">WOMEN</a></li>
-          <li><a href="/shop?category=Kids" id="kids-link">KIDS</a></li>
-          <li><a href="/shop?category=Accessories" id="accessories-link">ACCESSORIES</a></li>
-          ${isAdmin ? '<li><a href="/admin" id="admin-link" class="admin-nav-link">CMS</a></li>' : ''}
-          ${!user ? '<li><a href="/login" id="login-link">LOGIN</a></li>' : ''}
-        </ul>
-      </div>
-        <div class="nav-center">
-          <div class="search-bar">
-            <span class="search-icon"><img class="nav-search-icon-img" src="/nav/search-icon.svg" alt="Search"></span>
-            <input type="text" id="nav-search-input" placeholder="Search for products, brands and more">
-          </div>
-        </div>
+      <button class="mobile-menu-toggle" id="mobile-menu-btn">â˜°</button>
+      <a href="/" class="logo" id="logo-link">
+        <img src="${logoUrl}" alt="GUGAN" style="height: 45px; width: auto; display: block;">
+      </a>
+      <ul class="nav-links">
+        <li><a href="/shop" id="shop-link">SHOP ALL</a></li>
+        ${DESKTOP_NAV_CATEGORIES.map((category) => `<li><a href="${CATEGORY_LINKS[category]}" id="${category.toLowerCase()}-link">${escapeHtml(category.toUpperCase())}</a></li>`).join('')}
+      </ul>
       <div class="nav-right">
-        <div class="nav-actions">
-          <div class="action-item profile" id="profile-action">
-            <span><img class="nav-icon-img" src="/nav/profile-icon.svg" alt="Profile"></span>
-            <p>${user ? (user.profile?.full_name || user.user_metadata?.full_name || 'Account') : 'Profile'}</p>
-          </div>
-          <div class="action-item"><span><img class="nav-icon-img" src="/nav/wishlist-icon.svg" alt="Wishlist"></span><p>Wishlist</p></div>
-          <a href="/cart" class="action-item cart" id="cart-link">
-            <span><img class="nav-icon-img" src="/nav/cart-icon.svg" alt="Cart"></span><p>Cart</p>
-          </a>
+        <div class="search-bar">
+          <input type="text" id="nav-search-input" placeholder="Search for products, brands and more">
+        </div>
+        <div class="action-links">
+          ${isAdmin ? '<a href="/admin" id="admin-link">CMS</a>' : ''}
+          <a href="/wishlist" id="wishlist-link">WISHLIST</a>
+          <a href="#" id="profile-action">${user ? (user.profile?.full_name?.split(' ')[0] || 'ACCOUNT') : 'LOGIN'}</a>
+          <a href="/cart" id="cart-link">CART</a>
         </div>
       </div>
     </nav>
+
+    <div class="mobile-drawer-overlay" id="mobile-overlay"></div>
+    <div class="mobile-drawer" id="mobile-drawer">
+      <div class="mobile-nav-links">
+        <a href="/" class="mobile-nav-item">HOME</a>
+        <a href="/shop" class="mobile-nav-item">SHOP ALL</a>
+        ${CATEGORY_NAMES.map((category) => `<a href="${CATEGORY_LINKS[category]}" class="mobile-nav-item">${escapeHtml(category.toUpperCase())}</a>`).join('')}
+      </div>
+      <div class="mobile-action-links">
+        <a href="/cart" class="mobile-nav-item">MY CART</a>
+        <a href="#" id="mobile-profile-action">${user ? 'LOGOUT' : 'LOGIN / SIGNUP'}</a>
+      </div>
+    </div>
   `;
 
-  document.getElementById('logo-link').onclick = (e) => { e.preventDefault(); navigate('/'); };
-  document.getElementById('shop-link').onclick = (e) => { e.preventDefault(); navigate('/shop'); };
-  document.getElementById('men-link').onclick = (e) => { e.preventDefault(); navigate('/shop?category=Men'); };
-  document.getElementById('women-link').onclick = (e) => { e.preventDefault(); navigate('/shop?category=Women'); };
-  document.getElementById('kids-link').onclick = (e) => { e.preventDefault(); navigate('/shop?category=Kids'); };
-  document.getElementById('accessories-link').onclick = (e) => { e.preventDefault(); navigate('/shop?category=Accessories'); };
-  document.getElementById('cart-link').onclick = (e) => { e.preventDefault(); navigate('/cart'); };
-  document.getElementById('login-link')?.addEventListener('click', (e) => { e.preventDefault(); navigate('/login'); });
-  if (isAdmin) document.getElementById('admin-link').onclick = (e) => { e.preventDefault(); navigate('/admin'); };
-
-  document.getElementById('profile-action').onclick = () => {
-    const currentUser = store.getState().user;
-    if (currentUser) {
-      if (confirm(`Logout ${currentUser.email}?`)) {
-        authService.signOut();
-      }
-    } else {
-      navigate('/login');
-    }
+  // Helper to close drawer
+  const closeDrawer = () => {
+    document.getElementById('mobile-drawer').classList.remove('active');
+    document.getElementById('mobile-overlay').classList.remove('active');
   };
+
+  document.getElementById('mobile-menu-btn').onclick = () => {
+    document.getElementById('mobile-drawer').classList.add('active');
+    document.getElementById('mobile-overlay').classList.add('active');
+  };
+  document.getElementById('mobile-overlay').onclick = closeDrawer;
+
+  // Navigation handlers
+  const navItems = header.querySelectorAll('.logo, .nav-links a, .mobile-nav-item, #admin-link, #wishlist-link, #cart-link');
+  navItems.forEach(item => {
+    const originalOnClick = item.onclick;
+    item.onclick = (e) => {
+      if (item.id === 'mobile-profile-action') return; // Handled below
+      e.preventDefault();
+      const href = item.getAttribute('href');
+      if (href && href !== '#') {
+        closeDrawer();
+        navigate(href);
+      }
+    };
+  });
+
+  document.getElementById('profile-action').onclick = (e) => {
+    e.preventDefault();
+    if (user) { if (confirm('Logout?')) authService.signOut(); } 
+    else navigate('/login');
+  };
+
+  const mobileProfileBtn = document.getElementById('mobile-profile-action');
+  if (mobileProfileBtn) {
+    mobileProfileBtn.onclick = (e) => {
+      e.preventDefault();
+      closeDrawer();
+      if (user) { if (confirm('Logout?')) authService.signOut(); }
+      else navigate('/login');
+    };
+  }
 
   const searchInput = document.getElementById('nav-search-input');
   if (searchInput) {
     searchInput.onkeypress = (e) => {
-      if (e.key === 'Enter') {
-        const q = searchInput.value.trim();
-        if (q) navigate(`/shop?search=${encodeURIComponent(q)}`);
+      if (e.key === 'Enter' && searchInput.value.trim()) {
+        navigate(`/shop?search=${encodeURIComponent(searchInput.value.trim())}`);
       }
     };
   }
-
-  document.getElementById('nav-mobile-toggle')?.addEventListener('click', () => {
-    header.classList.toggle('nav-open');
-  });
-  header.querySelectorAll('.nav-links a').forEach((link) => {
-    link.addEventListener('click', () => header.classList.remove('nav-open'));
-  });
 };
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -453,43 +952,27 @@ const renderAdmin = async (path = '/admin') => {
   if (!isAdmin) {
     main.innerHTML = `
       <div class="container py-xl text-center">
-        <div style="font-size:4rem">ðŸ”’</div>
+        <div style="font-size:4rem">&#128274;</div>
         <h1 style="margin-top:1rem">Access Denied</h1>
-        <p class="mt-md" style="color:hsl(var(--text-muted))">You must be an admin to access this panel.</p>
+        <p class="mt-md" style="color:var(--c-gray-500)">You must be an admin to access this panel.</p>
         <button class="btn-primary mt-lg" onclick="app.navigate('/')">Go Home</button>
       </div>`;
     return;
   }
 
-  // Only re-render shell if not already present
   if (!document.getElementById('admin-content')) {
     main.innerHTML = `
       <div class="admin-layout">
-        <aside class="admin-sidebar">
-          <div class="admin-brand"><span>âš™ï¸</span><h3>Admin CMS</h3></div>
-          <ul class="admin-nav">
-            <li class="admin-nav-item" data-path="/admin"><span>ðŸ“Š</span> Dashboard</li>
-            <li class="admin-nav-item" data-path="/admin/products"><span>ðŸ‘—</span> Products</li>
-            <li class="admin-nav-item" data-path="/admin/categories"><span>ðŸ“‚</span> Categories</li>
-            <li class="admin-nav-item" data-path="/admin/orders"><span>ðŸ“¦</span> Orders</li>
-            <li class="admin-nav-item" data-path="/admin/cms/hero"><span>ðŸ–¼ï¸</span> Hero Banner</li>
-          </ul>
-          <div class="admin-sidebar-footer">
-            <button onclick="app.navigate('/')" class="btn-secondary-sm">â† Back to Store</button>
-          </div>
-        </aside>
+        <aside class="admin-sidebar"></aside>
         <main class="admin-content" id="admin-content"></main>
       </div>
     `;
-
-    document.querySelectorAll('.admin-nav-item').forEach(item => {
-      item.onclick = () => navigate(item.dataset.path);
-    });
   }
 
-  // Update active nav
-  document.querySelectorAll('.admin-nav-item').forEach(i => {
-    i.classList.toggle('active', path.startsWith(i.dataset.path) && (i.dataset.path === '/admin' ? path === '/admin' : true));
+  refreshAdminShell(user);
+
+  document.querySelectorAll('.admin-nav-item').forEach(item => {
+    item.classList.toggle('active', path.startsWith(item.dataset.path) && (item.dataset.path === '/admin' ? path === '/admin' : true));
   });
 
   const content = document.getElementById('admin-content');
@@ -502,18 +985,18 @@ const renderAdmin = async (path = '/admin') => {
     else if (path === '/admin/categories') await adminCategories(content);
     else if (path === '/admin/orders') await adminOrders(content);
     else if (path === '/admin/cms/hero') await adminHeroCMS(content);
-    else content.innerHTML = `<div class="admin-error">Page not found: ${path}</div>`;
+    else content.innerHTML = `<div class="admin-error">Page not found: ${escapeHtml(path)}</div>`;
   } catch (err) {
     console.error(err);
-    content.innerHTML = `<div class="admin-error">âŒ ${err.message}</div>`;
+    content.innerHTML = `<div class="admin-error">Unable to load this admin view. ${escapeHtml(err.message || 'Unknown error.')}</div>`;
   }
 };
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// ADMIN: DASHBOARD
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const adminDashboard = async (container) => {
-  let productCount = 0, orderCount = 0, latestUpdate = '--';
+  let productCount = 0;
+  let orderCount = 0;
+  let latestUpdate = '--';
+
   try {
     const [{ products }, orders] = await Promise.all([
       productService.getProducts({}),
@@ -521,47 +1004,120 @@ const adminDashboard = async (container) => {
     ]);
     productCount = products.length;
     orderCount = orders.length;
+
     if (products.length > 0) {
-      const latest = [...products].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))[0];
-      latestUpdate = new Date(latest.updated_at).toLocaleString();
+      const latest = [...products].sort((a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0))[0];
+      latestUpdate = latest?.updated_at || latest?.created_at ? new Date(latest.updated_at || latest.created_at).toLocaleString() : '--';
     }
   } catch (err) {
     console.error('Error fetching dashboard stats:', err);
   }
 
+  const displayName = store.getState().user?.profile?.full_name || store.getState().user?.email || 'Admin';
+  const lastUpdatedLabel = latestUpdate === '--' ? 'No product updates yet' : latestUpdate;
+
   container.innerHTML = `
     <div class="admin-page-header">
-      <div><h1>Dashboard</h1><p>Welcome back, ${store.getState().user?.profile?.full_name || store.getState().user?.email}</p></div>
+      <div>
+        <span class="admin-kicker">Executive Overview</span>
+        <h1>Dashboard</h1>
+        <p>Welcome back, ${escapeHtml(displayName)}. Here is the live pulse of your storefront operations.</p>
+      </div>
+      <div class="admin-header-actions">
+        <button class="btn-secondary" onclick="app.navigate('/admin/orders')">Review Orders</button>
+        <button class="btn-primary" onclick="app.navigate('/admin/products/add')">Add Product</button>
+      </div>
     </div>
     <div class="admin-stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon">ðŸ‘—</div>
-        <div class="stat-info"><p class="stat-label">Total Products</p><h2 class="stat-value">${productCount}</h2></div>
+      <div class="stat-card stat-card-products">
+        <div class="stat-icon" data-icon="products"></div>
+        <div class="stat-info">
+          <p class="stat-label">Total Products</p>
+          <h2 class="stat-value">${productCount}</h2>
+          <p class="stat-footnote">Catalog units currently available to sell.</p>
+        </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon">ðŸ“¦</div>
-        <div class="stat-info"><p class="stat-label">Total Orders</p><h2 class="stat-value">${orderCount}</h2></div>
+      <div class="stat-card stat-card-orders">
+        <div class="stat-icon" data-icon="orders"></div>
+        <div class="stat-info">
+          <p class="stat-label">Total Orders</p>
+          <h2 class="stat-value">${orderCount}</h2>
+          <p class="stat-footnote">Submitted orders tracked in the system.</p>
+        </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon">ðŸ•</div>
-        <div class="stat-info"><p class="stat-label">Last Updated</p><h2 class="stat-value" style="font-size:0.95rem;">${latestUpdate}</h2></div>
+      <div class="stat-card stat-card-updated">
+        <div class="stat-icon" data-icon="activity"></div>
+        <div class="stat-info">
+          <p class="stat-label">Last Updated</p>
+          <h2 class="stat-value stat-value-sm">${escapeHtml(lastUpdatedLabel)}</h2>
+          <p class="stat-footnote">Most recent product change detected in the catalog.</p>
+        </div>
       </div>
+    </div>
+    <div class="admin-dashboard-grid">
+      <section class="admin-card admin-briefing-card">
+        <div class="briefing-header">
+          <div>
+            <span class="admin-kicker">Command Center</span>
+            <h2>Priority Actions</h2>
+          </div>
+          <p>Use the fastest paths for the jobs you do every day.</p>
+        </div>
+        <div class="quick-action-grid mt-md">
+          <button class="quick-action-card" onclick="app.navigate('/admin/products/add')">
+            <span data-icon="plus"></span>
+            <strong>Add Product</strong>
+            <p>Launch a new listing with pricing, media, and sizing.</p>
+          </button>
+          <button class="quick-action-card" onclick="app.navigate('/admin/products')">
+            <span data-icon="catalog"></span>
+            <strong>Manage Catalog</strong>
+            <p>Edit inventory, pricing, merchandising, and visibility.</p>
+          </button>
+          <button class="quick-action-card" onclick="app.navigate('/admin/cms/hero')">
+            <span data-icon="hero"></span>
+            <strong>Refresh Hero</strong>
+            <p>Update the top campaign moment on the storefront.</p>
+          </button>
+          <button class="quick-action-card" onclick="app.navigate('/admin/categories')">
+            <span data-icon="collections"></span>
+            <strong>Collections</strong>
+            <p>Reorder category stories and keep navigation sharp.</p>
+          </button>
+        </div>
+      </section>
+      <section class="admin-card admin-summary-card">
+        <span class="admin-kicker">Store Status</span>
+        <h2>Operational Snapshot</h2>
+        <div class="admin-summary-list">
+          <div class="summary-row">
+            <span>Catalog health</span>
+            <strong>${productCount > 0 ? 'Live' : 'Needs products'}</strong>
+          </div>
+          <div class="summary-row">
+            <span>Order flow</span>
+            <strong>${orderCount > 0 ? 'Active' : 'Waiting for first order'}</strong>
+          </div>
+          <div class="summary-row">
+            <span>Latest activity</span>
+            <strong>${escapeHtml(lastUpdatedLabel)}</strong>
+          </div>
+        </div>
+        <button class="btn-secondary admin-summary-button" onclick="app.navigate('/admin/orders')">Open Orders Queue</button>
+      </section>
     </div>
     <div class="admin-quick-actions mt-xl">
       <h2 class="section-title-sm">Quick Actions</h2>
       <div class="quick-action-grid mt-md">
-        <button class="quick-action-card" onclick="app.navigate('/admin/products/add')"><span>âž•</span><p>Add Product</p></button>
-        <button class="quick-action-card" onclick="app.navigate('/admin/cms/hero')"><span>ðŸ–¼ï¸</span><p>Edit Hero Banner</p></button>
-        <button class="quick-action-card" onclick="app.navigate('/admin/categories')"><span>ðŸ“‚</span><p>Edit Categories</p></button>
-        <button class="quick-action-card" onclick="app.navigate('/admin/orders')"><span>ðŸ“‹</span><p>View Orders</p></button>
+        <button class="quick-action-card quick-action-card-compact" onclick="app.navigate('/admin/products/add')"><span data-icon="plus"></span><p>Add Product</p></button>
+        <button class="quick-action-card quick-action-card-compact" onclick="app.navigate('/admin/cms/hero')"><span data-icon="hero"></span><p>Edit Hero</p></button>
+        <button class="quick-action-card quick-action-card-compact" onclick="app.navigate('/admin/categories')"><span data-icon="collections"></span><p>Edit Categories</p></button>
+        <button class="quick-action-card quick-action-card-compact" onclick="app.navigate('/admin/orders')"><span data-icon="orders"></span><p>View Orders</p></button>
       </div>
     </div>
   `;
 };
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// ADMIN: PRODUCTS LIST + ADD
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const adminProducts = async (container, path) => {
   if (path === '/admin/products/add') return adminProductForm(container, null);
 
@@ -583,19 +1139,19 @@ const adminProducts = async (container, path) => {
             <tr>
               <td>
                 <div class="product-cell">
-                  ${p.images?.[0] ? `<img src="${p.images[0]}" class="product-thumb">` : '<div class="product-thumb-placeholder">ðŸ“¦</div>'}
-                  <div><p class="product-cell-name">${p.name}</p><p class="product-cell-brand">${p.brand || ''}</p></div>
+                  ${p.images?.[0] ? `<img src="${escapeAttr(safeImage(p.images))}" class="product-thumb" alt="${escapeAttr(p.name || 'Product')}" data-fallback-src="${escapeAttr(defaultImageFallback)}">` : '<div class="product-thumb-placeholder">&#128230;</div>'}
+                  <div><p class="product-cell-name">${escapeHtml(p.name)}</p><p class="product-cell-brand">${escapeHtml(p.brand || '')}</p></div>
                 </div>
               </td>
-              <td><span class="badge">${p.category}</span></td>
+              <td><span class="badge">${escapeHtml(p.category || 'Uncategorized')}</span></td>
               <td><strong>Rs. ${Number(p.price).toLocaleString()}</strong></td>
-              <td>${p.discount ? `<span class="badge badge-warning">${p.discount}%</span>` : 'â€”'}</td>
-              <td>${p.stock ?? 'â€”'}</td>
-              <td>${p.is_best_seller ? '<span class="badge badge-success">Yes</span>' : 'â€”'}</td>
+              <td>${p.discount ? `<span class="badge badge-warning">${p.discount}%</span>` : '&mdash;'}</td>
+              <td>${p.stock ?? '&mdash;'}</td>
+              <td>${p.is_best_seller ? '<span class="badge badge-success">Yes</span>' : '&mdash;'}</td>
               <td>
                 <div class="action-buttons">
-                  <button class="btn-icon" title="Edit" onclick="app.navigate('/admin/products/edit/${p.id}')">âœï¸</button>
-                  <button class="btn-icon" title="Delete" onclick="app.adminDeleteProduct('${p.id}','${p.name}')">ðŸ—‘ï¸</button>
+                  <button class="btn-icon" title="Edit" onclick="app.navigate('/admin/products/edit/${p.id}')">Edit</button>
+                  <button class="btn-icon" title="Delete" onclick="app.adminDeleteProduct('${escapeAttr(p.id)}', ${JSON.stringify(p.name || 'this product')})">Delete</button>
                 </div>
               </td>
             </tr>
@@ -621,7 +1177,7 @@ const adminProducts = async (container, path) => {
 const adminProductForm = async (container, product) => {
   const isEdit = !!product;
   const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-  const CATEGORIES = ['Men', 'Women', 'Kids', 'Accessories'];
+  const CATEGORIES = CATEGORY_NAMES;
 
   // Fetch live categories from config for dropdown
   let catItems = [];
@@ -636,7 +1192,7 @@ const adminProductForm = async (container, product) => {
     <div class="admin-page-header">
       <div>
         <h1>${isEdit ? 'Edit Product' : 'Add Product'}</h1>
-        <p><a href="#" onclick="app.navigate('/admin/products'); return false;" style="color:hsl(var(--primary))">â† Back to Products</a></p>
+        <p><a href="#" onclick="app.navigate('/admin/products'); return false;" style="color:var(--c-gold)">&#8592; Back to Products</a></p>
       </div>
     </div>
     <div class="admin-card">
@@ -644,17 +1200,17 @@ const adminProductForm = async (container, product) => {
         <div class="form-grid-2">
           <div class="form-group">
             <label>Product Name *</label>
-            <input type="text" name="name" value="${product?.name || ''}" placeholder="e.g. Premium Linen Shirt" required>
+            <input type="text" name="name" value="${escapeAttr(product?.name || '')}" placeholder="e.g. Premium Linen Shirt" required>
           </div>
           <div class="form-group">
             <label>Brand</label>
-            <input type="text" name="brand" value="${product?.brand || ''}" placeholder="e.g. GUGAN">
+            <input type="text" name="brand" value="${escapeAttr(product?.brand || '')}" placeholder="e.g. GUGAN">
           </div>
           <div class="form-group">
             <label>Category *</label>
             <select name="category" required>
               <option value="">Select Category</option>
-              ${allCats.map(c => `<option value="${c}" ${product?.category === c ? 'selected' : ''}>${c}</option>`).join('')}
+              ${allCats.map(c => `<option value="${escapeAttr(c)}" ${product?.category === c ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}
             </select>
           </div>
           <div class="form-group">
@@ -687,7 +1243,7 @@ const adminProductForm = async (container, product) => {
         </div>
         <div class="form-group">
           <label>Description</label>
-          <textarea name="description" rows="4" placeholder="Describe the product...">${product?.description || ''}</textarea>
+          <textarea name="description" rows="4" placeholder="Describe the product...">${escapeHtml(product?.description || '')}</textarea>
         </div>
         <div class="form-group">
           <label class="checkbox-label">
@@ -702,7 +1258,7 @@ const adminProductForm = async (container, product) => {
         <div class="form-actions">
           <button type="button" class="btn-secondary" onclick="app.navigate('/admin/products')">Cancel</button>
           <button type="submit" class="btn-primary" id="save-product-btn">
-            ${isEdit ? 'ðŸ’¾ Update Product' : 'âž• Add Product'}
+            ${isEdit ? '&#128190; Update Product' : '&#10133; Add Product'}
           </button>
         </div>
       </form>
@@ -721,7 +1277,6 @@ const adminProductForm = async (container, product) => {
       const fd = new FormData(e.target);
       const imageUrl = await resolveImageUrl(container, 'products');
 
-      const sizes = [...fd.getAll('name')]; // just in case; directly grab checkboxes
       const checkedSizes = [...e.target.querySelectorAll('[name="sizes"]:checked')].map(cb => cb.value);
 
       const data = {
@@ -749,7 +1304,7 @@ const adminProductForm = async (container, product) => {
     } catch (err) {
       toast.error('Failed: ' + err.message);
       btn.disabled = false;
-      btn.textContent = isEdit ? 'ðŸ’¾ Update Product' : 'âž• Add Product';
+      btn.textContent = isEdit ? '&#128190; Update Product' : '&#10133; Add Product';
     }
   };
 };
@@ -771,8 +1326,13 @@ const adminProductEdit = async (container, id) => {
 // ADMIN: CATEGORIES
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const adminCategories = async (container) => {
-  const config = await configService.getHomepageConfig();
-  let cats = config.categories?.items || [];
+  let config = {};
+  try {
+    config = await configService.getHomepageConfig();
+  } catch (_) {
+    config = { categories: { items: [] } };
+  }
+  let cats = normalizeCategoryItems(config.categories?.items || []);
 
   const renderCatsUI = () => {
     container.innerHTML = `
@@ -784,18 +1344,17 @@ const adminCategories = async (container) => {
         ${cats.length === 0 ? '<div class="admin-empty">No categories yet.</div>' : cats.map((cat, i) => `
           <div class="category-row" data-index="${i}">
             <div class="category-row-info">
-              ${cat.image ? `<img src="${cat.image}" class="cat-thumb">` : '<div class="cat-thumb-placeholder">ðŸ“‚</div>'}
+              ${cat.image ? `<img src="${escapeAttr(safeImage(cat.image))}" class="cat-thumb" alt="${escapeAttr(cat.name || 'Category')}" data-fallback-src="${escapeAttr(defaultImageFallback)}">` : '<div class="cat-thumb-placeholder">&#128194;</div>'}
               <div>
-                <strong>${cat.name || 'Unnamed'}</strong>
-                <p style="color:hsl(var(--text-muted));font-size:0.85rem">${cat.tagline || ''}</p>
-                <p style="color:hsl(var(--text-muted));font-size:0.8rem">${cat.link || ''}</p>
+                <strong>${escapeHtml(cat.name || 'Unnamed')}</strong>
+                <p style="color:var(--c-gray-500);font-size:0.85rem">${escapeHtml(cat.tagline || '')}</p>
+                <p style="color:var(--c-gray-500);font-size:0.8rem">${escapeHtml(cat.link || '')}</p>
               </div>
-            </div>
             <div class="action-buttons">
-              <button class="btn-icon" title="Edit" onclick="app.editCat(${i})">âœï¸</button>
-              <button class="btn-icon" title="Delete" onclick="app.deleteCat(${i})">ðŸ—‘ï¸</button>
-              ${i > 0 ? `<button class="btn-icon" title="Move Up" onclick="app.moveCat(${i}, -1)">â†‘</button>` : ''}
-              ${i < cats.length - 1 ? `<button class="btn-icon" title="Move Down" onclick="app.moveCat(${i}, 1)">â†“</button>` : ''}
+              <button class="btn-icon" title="Edit" onclick="app.editCat(${i})">Edit</button>
+              <button class="btn-icon" title="Delete" onclick="app.deleteCat(${i})">Delete</button>
+              ${i > 0 ? `<button class="btn-icon" title="Move Up" onclick="app.moveCat(${i}, -1)">Up</button>` : ""}
+              ${i < cats.length - 1 ? `<button class="btn-icon" title="Move Down" onclick="app.moveCat(${i}, 1)">Down</button>` : ""}
             </div>
           </div>
           ${i < cats.length - 1 ? '<hr class="admin-divider">' : ''}
@@ -820,21 +1379,21 @@ const adminCategories = async (container) => {
       <div class="modal-content">
         <div class="modal-header">
           <h3>${isEdit ? 'Edit Category' : 'Add Category'}</h3>
-          <button class="modal-close" id="close-cat-modal">âœ•</button>
+          <button class="modal-close" id="close-cat-modal">Close</button>
         </div>
         <form id="cat-form" class="admin-form">
           <div class="form-grid-2">
             <div class="form-group">
               <label>Category Name *</label>
-              <input type="text" name="name" value="${cat?.name || ''}" placeholder="e.g. MEN" required>
+              <input type="text" name="name" value="${escapeAttr(cat?.name || '')}" placeholder="e.g. MEN" required>
             </div>
             <div class="form-group">
               <label>Tagline</label>
-              <input type="text" name="tagline" value="${cat?.tagline || ''}" placeholder="e.g. Minimalist Luxury">
+              <input type="text" name="tagline" value="${escapeAttr(cat?.tagline || '')}" placeholder="e.g. Minimalist Luxury">
             </div>
             <div class="form-group" style="grid-column:span 2">
               <label>Link</label>
-              <input type="text" name="link" value="${cat?.link || ''}" placeholder="/shop?category=Men">
+              <input type="text" name="link" value="${escapeAttr(cat?.link || '')}" placeholder="/shop?category=Men">
             </div>
           </div>
           <div class="form-group">
@@ -843,7 +1402,7 @@ const adminCategories = async (container) => {
           </div>
           <div class="form-actions">
             <button type="button" class="btn-secondary" id="cancel-cat">Cancel</button>
-            <button type="submit" class="btn-primary">${isEdit ? 'ðŸ’¾ Update' : 'âž• Add'}</button>
+            <button type="submit" class="btn-primary">${isEdit ? '&#128190; Update' : '&#10133; Add'}</button>
           </div>
         </form>
       </div>
@@ -863,14 +1422,16 @@ const adminCategories = async (container) => {
       try {
         const fd = new FormData(e.target);
         const imageUrl = await resolveImageUrl(modal, 'banners');
+        const categoryName = String(fd.get('name') || '').trim();
         const item = {
-          name: fd.get('name'),
+          name: categoryName,
           tagline: fd.get('tagline'),
-          link: fd.get('link'),
+          link: fd.get('link') || CATEGORY_LINKS[categoryName] || '/shop',
           image: imageUrl,
         };
         if (isEdit) cats[index] = item;
         else cats.push(item);
+        cats = normalizeCategoryItems(cats);
         await saveCats();
         close();
         toast.success(isEdit ? 'Category updated!' : 'Category added!');
@@ -911,9 +1472,9 @@ const adminOrders = async (container) => {
     </div>
     ${orders.length === 0 ? `
       <div class="admin-empty" style="text-align:center;padding:4rem">
-        <div style="font-size:3rem">ðŸ“¦</div>
+        <div style="font-size:3rem">&#128230;</div>
         <h3 style="margin-top:1rem">No orders yet</h3>
-        <p style="color:hsl(var(--text-muted));margin-top:0.5rem">Orders appear here once customers purchase.</p>
+        <p style="color:var(--c-gray-500);margin-top:0.5rem">Orders appear here once customers purchase.</p>
       </div>` : `
     <div class="admin-table-wrapper">
       <table class="admin-table">
@@ -964,7 +1525,12 @@ const adminOrders = async (container) => {
 // ADMIN: HERO BANNER CMS
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const adminHeroCMS = async (container) => {
-  const config = await configService.getHomepageConfig();
+  let config = {};
+  try {
+    config = await configService.getHomepageConfig();
+  } catch (_) {
+    config = {};
+  }
   const hero = config.hero || {};
 
   container.innerHTML = `
@@ -972,7 +1538,7 @@ const adminHeroCMS = async (container) => {
       <div><h1>Hero Banner</h1><p>Customize your homepage hero section</p></div>
     </div>
     <div class="admin-card">
-      ${hero.image ? `<div class="hero-preview mb-lg"><img src="${hero.image}" class="hero-preview-img"><div class="hero-preview-overlay"><h2>${hero.headline || ''}</h2><p>${hero.subtext || ''}</p></div></div>` : ''}
+      ${hero.image ? `<div class="hero-preview mb-lg"><img src="${escapeAttr(safeImage(hero.image, heroDefaultUrl))}" class="hero-preview-img" alt="Hero preview" data-fallback-src="${escapeAttr(heroDefaultUrl)}"><div class="hero-preview-overlay"><h2>${escapeHtml(hero.headline || '')}</h2><p>${escapeHtml(hero.subtext || '')}</p></div></div>` : ''}
       <form id="hero-form" class="admin-form">
         <div class="admin-card-header"><span>ðŸ–¼ï¸</span><h2>Banner Image</h2></div>
         ${createImageInput(hero.image || '', 'banners')}
@@ -981,19 +1547,23 @@ const adminHeroCMS = async (container) => {
         <div class="form-grid-2">
           <div class="form-group">
             <label>Headline</label>
-            <input type="text" name="headline" value="${hero.headline || ''}" placeholder="SUMMER COLLECTION 2026">
+            <input type="text" name="headline" value="${escapeAttr(hero.headline || '')}" placeholder="SUMMER COLLECTION 2026">
           </div>
           <div class="form-group">
             <label>Subtext</label>
-            <input type="text" name="subtext" value="${hero.subtext || ''}" placeholder="Experience minimalist luxury">
+            <input type="text" name="subtext" value="${escapeAttr(hero.subtext || '')}" placeholder="Experience minimalist luxury">
           </div>
           <div class="form-group">
             <label>Button Text</label>
-            <input type="text" name="buttonText" value="${hero.buttonText || 'SHOP NOW'}" placeholder="SHOP NOW">
+            <input type="text" name="buttonText" value="${escapeAttr(hero.buttonText || 'SHOP NOW')}" placeholder="SHOP NOW">
           </div>
           <div class="form-group">
             <label>Button Link</label>
-            <input type="text" name="link" value="${hero.link || '/shop'}" placeholder="/shop">
+            <input type="text" name="link" value="${escapeAttr(hero.link || '/shop')}" placeholder="/shop">
+          </div>
+          <div class="form-group" style="grid-column:span 2">
+            <label>Homepage Video URL</label>
+            <input type="text" name="videoUrl" value="${escapeAttr(hero.videoUrl || '')}" placeholder="https://example.com/video.mp4">
           </div>
           <div class="form-group">
             <label class="checkbox-label">
@@ -1003,7 +1573,7 @@ const adminHeroCMS = async (container) => {
           </div>
         </div>
         <div class="form-actions mt-lg">
-          <button type="submit" class="btn-primary" id="hero-save-btn">ðŸ’¾ Save & Apply to Homepage</button>
+          <button type="submit" class="btn-primary" id="hero-save-btn">&#128190; Save & Apply to Homepage</button>
         </div>
       </form>
     </div>
@@ -1024,6 +1594,7 @@ const adminHeroCMS = async (container) => {
         subtext: fd.get('subtext'),
         buttonText: fd.get('buttonText'),
         link: fd.get('link'),
+        videoUrl: fd.get('videoUrl'),
         visible: !!e.target.querySelector('[name="visible"]').checked,
       };
       await configService.updateConfig('hero', data);
@@ -1031,12 +1602,12 @@ const adminHeroCMS = async (container) => {
       store.setState({ homepage: updated });
       toast.success('Hero banner updated! Changes are live on the homepage.');
       btn.textContent = 'âœ… Saved!';
-      setTimeout(() => { btn.disabled = false; btn.textContent = 'ðŸ’¾ Save & Apply to Homepage'; }, 2500);
+      setTimeout(() => { btn.disabled = false; btn.textContent = '&#128190; Save & Apply to Homepage'; }, 2500);
       // Re-render to show new preview
       setTimeout(() => adminHeroCMS(container), 2600);
     } catch (err) {
       toast.error('Failed: ' + err.message);
-      btn.disabled = false; btn.textContent = 'ðŸ’¾ Save & Apply to Homepage';
+      btn.disabled = false; btn.textContent = '&#128190; Save & Apply to Homepage';
     }
   };
 };
@@ -1070,21 +1641,20 @@ const renderShop = async () => {
   main.innerHTML = `
     <div class="shop-page-wrapper">
       <div class="container py-xl shop-layout">
-        <!-- SIDEBAR FILTERS -->
         <aside class="shop-sidebar">
           <div class="filter-header">
-            <h3 class="filter-title">FILTERS</h3>
+            <h3>FILTERS</h3>
             <button class="clear-all-btn" onclick="app.clearFilters()">CLEAR ALL</button>
           </div>
 
           <div class="filter-section">
-            <h4 class="filter-subtitle">CATEGORIES</h4>
+            <h4>CATEGORIES</h4>
             <div class="filter-options">
               <label class="filter-checkbox">
                 <input type="radio" name="category" value="" ${!currentFilters.category ? 'checked' : ''} onchange="app.updateShopFilter('category', '', this.checked)">
                 <span>All</span>
               </label>
-              ${['Men', 'Women', 'Kids', 'Accessories'].map(cat => `
+              ${CATEGORY_NAMES.map(cat => `
                 <label class="filter-checkbox">
                   <input type="radio" name="category" value="${cat}" ${currentFilters.category === cat ? 'checked' : ''} onchange="app.updateShopFilter('category', '${cat}', this.checked)">
                   <span>${cat}</span>
@@ -1094,7 +1664,7 @@ const renderShop = async () => {
           </div>
 
           <div class="filter-section">
-            <h4 class="filter-subtitle">BRAND</h4>
+            <h4>BRAND</h4>
             <div class="filter-options">
               ${['GUGAN', 'MAX', 'LUMA', 'WALK'].map(brand => `
                 <label class="filter-checkbox">
@@ -1106,36 +1676,14 @@ const renderShop = async () => {
           </div>
 
           <div class="filter-section">
-            <h4 class="filter-subtitle">PRICE</h4>
+            <h4>PRICE</h4>
             <div class="price-range-inputs">
               <input type="range" min="0" max="10000" step="500" value="${currentFilters.priceRange.max}" oninput="this.nextElementSibling.textContent = 'Under Rs. ' + Number(this.value).toLocaleString(); app.updateShopFilter('priceMax', this.value)">
               <p class="price-display">Under Rs. ${currentFilters.priceRange.max.toLocaleString()}</p>
             </div>
           </div>
-
-          <div class="filter-section">
-            <h4 class="filter-subtitle">SIZE</h4>
-            <div class="size-grid-filter">
-              ${['S', 'M', 'L', 'XL', 'XXL'].map(size => `
-                <button class="filter-size-btn ${currentFilters.sizes.includes(size) ? 'active' : ''}" onclick="app.updateShopFilter('size', '${size}')">${size}</button>
-              `).join('')}
-            </div>
-          </div>
-
-          <div class="filter-section">
-            <h4 class="filter-subtitle">FABRIC</h4>
-            <div class="filter-options">
-              ${['Cotton', 'Silk', 'Linen', 'Polyester'].map(f => `
-                <label class="filter-checkbox">
-                  <input type="checkbox" name="fabric" value="${f}" onchange="app.updateShopFilter('fabric', '${f}', this.checked)">
-                  <span>${f}</span>
-                </label>
-              `).join('')}
-            </div>
-          </div>
         </aside>
 
-        <!-- MAIN SHOP CONTENT -->
         <div class="shop-content">
           <div class="shop-toolbar">
             <div class="results-count" id="shop-results-count">Showing 0 products</div>
@@ -1148,13 +1696,11 @@ const renderShop = async () => {
               </select>
             </div>
           </div>
-
           <div class="product-grid mt-md" id="shop-product-grid">
             <div class="skeleton-grid"></div>
           </div>
-          
           <div class="load-more-container mt-xl text-center hidden" id="load-more-wrap">
-            <button class="btn-secondary" onclick="app.loadMoreProducts()">Load More</button>
+            <button class="btn-gold" onclick="app.loadMoreProducts()">LOAD MORE</button>
           </div>
         </div>
       </div>
@@ -1251,42 +1797,67 @@ const renderProductDetail = async (id) => {
     try { product = await productService.getProductById(id); } catch (_) {}
     if (!product) return navigate('/shop');
 
-    const sizes = product.sizes?.length ? product.sizes : ['XS','S','M','L','XL','XXL'];
-    const discountedPrice = product.discount ? Math.round(product.price * (1 - product.discount / 100)) : null;
+    const wishlist = store.getState().wishlist || [];
+    const isInWishlist = wishlist.includes(product.id);
+    const sizes = Array.isArray(product.sizes) && product.sizes.length ? product.sizes : ['S', 'M', 'L'];
+    const price = Number(product.price) || 0;
+    const discount = Number(product.discount) || 0;
+    const discountedPrice = discount > 0 ? getDiscountedPrice(product) : null;
+    const displayImage = safeImage(product.images);
+    const safeProductName = escapeHtml(product.name || 'Untitled Product');
+    const safeProductBrand = escapeHtml(product.brand || 'GUGAN');
+    const safeProductDescription = escapeHtml(product.description || 'Experience the ultimate in comfort and style with this premium piece from Gugan Fashions.');
 
     main.innerHTML = `
-      <div class="container py-xl pdp-layout">
-        <div class="pdp-images"><img src="${product.images?.[0] || ''}" alt="${product.name}" style="width:100%;border-radius:12px;object-fit:cover;max-height:600px;"></div>
+      <div class="pdp-container">
+        <div class="pdp-image">
+          <img src="${escapeAttr(displayImage)}" alt="${safeProductName}" data-fallback-src="${escapeAttr(defaultImageFallback)}">
+        </div>
         <div class="pdp-info">
-          <h1 class="brand-name-lg">${product.brand || ''}</h1>
-          <h2 class="product-name-lg">${product.name}</h2>
-          <div class="price-box-lg">
+          <h1 class="pdp-title">${safeProductName}</h1>
+          <h2 class="pdp-subtitle">${safeProductBrand}</h2>
+          
+          <div class="pdp-price-wrap">
             ${discountedPrice
-              ? `<span class="current-price-lg">Rs. ${discountedPrice.toLocaleString()}</span>
-                 <span style="text-decoration:line-through;color:hsl(var(--text-muted));margin-left:0.75rem">Rs. ${Number(product.price).toLocaleString()}</span>
-                 <span class="badge badge-warning" style="margin-left:0.5rem">${product.discount}% OFF</span>`
-              : `<span class="current-price-lg">Rs. ${Number(product.price).toLocaleString()}</span>`
+              ? `<span class="pdp-price">Rs. ${discountedPrice.toLocaleString()}</span>
+                 <span class="pdp-original-price">Rs. ${price.toLocaleString()}</span>
+                 <span class="badge badge-warning" style="margin-left:10px">${discount}% OFF</span>`
+              : `<span class="pdp-price">Rs. ${price.toLocaleString()}</span>`
             }
-            <span class="tax-info"> incl. all taxes</span>
           </div>
-          <div class="size-selector mt-lg">
-            <p>SELECT SIZE</p>
-            <div class="size-options">${sizes.map(s => `<button class="size-btn" data-size="${s}">${s}</button>`).join('')}</div>
+          <p class="pdp-taxes">inclusive of all taxes</p>
+
+          <div class="pdp-size-selector">
+            <p class="pdp-size-label">SELECT SIZE</p>
+            <div class="size-circles">
+              ${sizes.map(s => `<button class="size-circle" data-size="${s}">${s}</button>`).join('')}
+            </div>
           </div>
-          <div class="pdp-actions mt-lg">
-            <button class="btn-primary-lg" id="add-to-bag">ADD TO BAG</button>
-            <button class="btn-secondary-lg">WISHLIST</button>
+
+          <div class="pdp-actions">
+            <button class="btn-add-bag" id="add-to-bag">ADD TO BAG</button>
+            <button class="btn-wishlist ${isInWishlist ? 'active' : ''}" id="pdp-wishlist-btn">
+              ${isInWishlist ? '&#10084;&#65039; WISHLISTED' : '&#9825; WISHLIST'}
+            </button>
           </div>
-          ${product.description ? `<div class="pdp-details mt-lg"><h3>PRODUCT DETAILS</h3><p>${product.description}</p></div>` : ''}
+
+          <div class="pdp-details mt-xl" style="margin-top: 50px; border-top: 1px solid var(--c-gray-100); padding-top: 30px;">
+            <h3 style="font-size: 0.9rem; font-weight: 700; letter-spacing: 0.1em; margin-bottom: 15px;">PRODUCT DESCRIPTION</h3>
+            <p style="color: var(--c-gray-500); line-height: 1.8;">${safeProductDescription}</p>
+          </div>
         </div>
       </div>
     `;
 
+    document.getElementById('pdp-wishlist-btn').onclick = () => {
+      app.toggleWishlist(product.id);
+    };
+
     let selectedSize = sizes[2] || sizes[0];
-    document.querySelectorAll('.size-btn').forEach(btn => {
+    document.querySelectorAll('.size-circle').forEach(btn => {
       if (btn.dataset.size === selectedSize) btn.classList.add('active');
       btn.onclick = () => {
-        document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.size-circle').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         selectedSize = btn.dataset.size;
       };
@@ -1319,38 +1890,70 @@ const renderCart = () => {
     return;
   }
 
-  const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const total = cart.reduce((sum, item) => sum + (getDiscountedPrice(item) * item.quantity), 0);
   main.innerHTML = `
-    <div class="container py-xl cart-layout">
-      <div class="cart-items">
-        <h2 class="section-title-sm">SHOPPING BAG (${cart.length} Items)</h2>
-        ${cart.map(item => `
-          <div class="cart-item">
-            <img src="${item.images?.[0] || ''}">
-            <div class="item-info">
-              <p class="brand">${item.brand || ''}</p>
-              <p class="name">${item.name}</p>
-              <p style="color:hsl(var(--text-muted));font-size:0.85rem">Size: ${item.variant}</p>
-              <div class="qty-control mt-sm">
-                <button class="qty-btn" onclick="app.updateQty('${item.id}','${item.variant}',${item.quantity - 1})">âˆ’</button>
-                <span>${item.quantity}</span>
-                <button class="qty-btn" onclick="app.updateQty('${item.id}','${item.variant}',${item.quantity + 1})">+</button>
+    <div class="cart-page">
+      <div class="cart-items-container">
+        <div class="cart-header-row">
+          <h2 class="cart-title">SHOPPING BAG</h2>
+          <span class="item-count">${cart.length} Items</span>
+        </div>
+        
+        <div class="cart-list">
+          ${cart.map(item => `
+            <div class="cart-item">
+              <div class="cart-item-img">
+                <img src="${escapeAttr(safeImage(item.images))}" alt="${escapeAttr(item.name || 'Product')}" data-fallback-src="${escapeAttr(defaultImageFallback)}">
+              </div>
+              <div class="cart-item-details">
+                <div class="cart-item-main">
+                  <h3 class="cart-item-brand">${item.brand || 'GUGAN'}</h3>
+                  <h4 class="cart-item-name">${item.name}</h4>
+                  <p class="cart-item-variant">Size: <span>${item.variant}</span></p>
+                </div>
+                <div class="cart-item-actions">
+                  <div class="cart-qty">
+                    <button class="qty-btn" onclick="app.updateQty('${item.id}','${item.variant}',${item.quantity - 1})">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
+                    <span class="qty-val">${item.quantity}</span>
+                    <button class="qty-btn" onclick="app.updateQty('${item.id}','${item.variant}',${item.quantity + 1})">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
+                  </div>
+                  <button class="remove-link" onclick="app.removeItem('${item.id}','${item.variant}')">Remove</button>
+                </div>
+              </div>
+              <div class="cart-item-price-wrap">
+                <p class="cart-item-price">Rs. ${(getDiscountedPrice(item) * item.quantity).toLocaleString()}</p>
               </div>
             </div>
-            <div class="item-price">
-              <p>Rs. ${(item.price * item.quantity).toLocaleString()}</p>
-              <button class="remove-btn" onclick="app.removeItem('${item.id}','${item.variant}')">REMOVE</button>
-            </div>
-          </div>
-        `).join('')}
+          `).join('')}
+        </div>
       </div>
-      <aside class="order-summary">
-        <h2 class="section-title-sm">PRICE DETAILS</h2>
-        <div class="summary-row"><span>Total MRP</span><span>Rs. ${total.toLocaleString()}</span></div>
-        <div class="summary-row"><span>Convenience Fee</span><span class="free">FREE</span></div>
-        <hr>
-        <div class="summary-total"><span>Total Amount</span><span>Rs. ${total.toLocaleString()}</span></div>
-        <button class="btn-primary-lg mt-lg" id="place-order-btn">PLACE ORDER</button>
+
+      <aside class="cart-summary">
+        <h3 class="summary-title">ORDER SUMMARY</h3>
+        <div class="summary-details">
+          <div class="summary-row">
+            <span>Price (${cart.length} items)</span>
+            <span>Rs. ${total.toLocaleString()}</span>
+          </div>
+          <div class="summary-row">
+            <span>Delivery Charges</span>
+            <span class="text-success">FREE</span>
+          </div>
+          <div class="summary-divider"></div>
+          <div class="summary-row total">
+            <span>Total Amount</span>
+            <span>Rs. ${total.toLocaleString()}</span>
+          </div>
+        </div>
+        <button class="btn-checkout" id="place-order-btn">PLACE ORDER</button>
+        <div class="secure-info">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <span>100% SECURE PAYMENTS</span>
+        </div>
       </aside>
     </div>
   `;
@@ -1403,230 +2006,238 @@ const renderCart = () => {
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const renderHome = async () => {
   const main = document.getElementById('router-view');
+  const existingHero = document.getElementById('hero-cta');
+  existingHero?.__cleanupHero?.();
+  const existingMarquee = document.querySelector('.marquee-container');
+  existingMarquee?.__cleanupMarquee?.();
+  const existingTestimonials = document.querySelector('.testimonials-marquee');
+  existingTestimonials?.__cleanupTestimonials?.();
   const config = store.getState().homepage || {};
   const hero = config.hero || {
-    image: '/homepage_hero_banner_1776790133387.png',
+    image: heroDefaultUrl,
     headline: 'PERFECT CASUAL WEAR',
     subtext: 'Under 449 #CasualStyle',
     buttonText: 'SHOP NOW', link: '/shop', visible: true
   };
   const categories = config.categories || { title: 'SHOP BY CATEGORY', items: [] };
-  const heroImageFallback = 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=1600&auto=format&fit=crop';
-  const categoryImageFallbacks = {
-    MEN: 'https://images.unsplash.com/photo-1516826957135-700dedea698c?q=80&w=600&auto=format&fit=crop',
-    WOMEN: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=600&auto=format&fit=crop',
-    KIDS: 'https://images.unsplash.com/photo-1503919545889-aef636e10ad4?q=80&w=600&auto=format&fit=crop',
-    ACCESSORIES: 'https://images.unsplash.com/photo-1617038220319-276d3cfab638?q=80&w=600&auto=format&fit=crop',
-    SHIRTS: 'https://images.unsplash.com/photo-1516826957135-700dedea698c?q=80&w=600&auto=format&fit=crop',
-    JEANS: 'https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=600&auto=format&fit=crop',
-    'T-SHIRTS': 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=600&auto=format&fit=crop',
-    TROUSERS: 'https://images.unsplash.com/photo-1614251055880-ee96e4803393?q=80&w=600&auto=format&fit=crop'
-  };
-
-  const fallbackCircleItems = [
-    { name: 'Shirts', link: '/shop?category=Men', image: 'https://images.unsplash.com/photo-1516826957135-700dedea698c?q=80&w=600&auto=format&fit=crop' },
-    { name: 'Jeans', link: '/shop?search=Jeans', image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=600&auto=format&fit=crop' },
-    { name: 'T-Shirts', link: '/shop?search=Tshirt', image: 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=600&auto=format&fit=crop' },
-    { name: 'Trousers', link: '/shop?search=Trousers', image: 'https://images.unsplash.com/photo-1614251055880-ee96e4803393?q=80&w=600&auto=format&fit=crop' },
-  ];
-  const circleItems = categories.items?.length
-    ? categories.items.map((cat) => {
-        const key = String(cat?.name || '').toUpperCase();
-        return {
-          ...cat,
-          image: cat?.image || categoryImageFallbacks[key] || heroImageFallback
-        };
-      })
-    : fallbackCircleItems;
-
-  const rowWomen = [
-    { name: 'Sarees', link: '/shop?search=Saree', image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=600&auto=format&fit=crop' },
-    { name: 'Kurta Sets', link: '/shop?search=Kurta', image: 'https://images.unsplash.com/photo-1621184455862-c163dfb30e0f?q=80&w=600&auto=format&fit=crop' },
-    { name: 'Dresses', link: '/shop?search=Dress', image: 'https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=600&auto=format&fit=crop' },
-    { name: 'Tops', link: '/shop?search=Top', image: 'https://images.unsplash.com/photo-1485462537746-965f33f7f6a7?q=80&w=600&auto=format&fit=crop' },
-  ];
-  const rowKids = [
-    { name: 'Boys Shirts', link: '/shop?search=Boys Shirt', image: 'https://images.unsplash.com/photo-1503919545889-aef636e10ad4?q=80&w=600&auto=format&fit=crop' },
-    { name: 'Kids Tees', link: '/shop?search=Kids Tee', image: 'https://images.unsplash.com/photo-1517677129300-07b130802f46?q=80&w=600&auto=format&fit=crop' },
-    { name: 'Kids Jeans', link: '/shop?search=Kids Jeans', image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=600&auto=format&fit=crop' },
-    { name: 'Kids Shoes', link: '/shop?search=Kids Shoes', image: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?q=80&w=600&auto=format&fit=crop' },
-  ];
+  const heroSlides = getHeroSlides(hero);
+  const heroImageFallback = heroSlides[0] || heroDefaultUrl;
+  const circleItems = normalizeCategoryItems(Array.isArray(categories.items) && categories.items.length ? categories.items : getDefaultCategoryItems());
+  const safeHeroLink = safeAppLink(hero.link, '/shop');
+  const homeVideoUrl = safeMediaLink(hero.videoUrl, DEFAULT_HOME_VIDEO_URL);
 
   main.innerHTML = `
     <div class="home-page">
-      <div class="container home-shell">
-        ${hero.visible !== false ? `
-        <section class="m-hero-card">
-          <img src="${hero.image || heroImageFallback}" alt="${hero.headline}" class="m-hero-image" onerror="this.src='${heroImageFallback}'">
-          <div class="m-hero-overlay">
-            <span class="m-hero-badge">GUGAN HOME FASHIONS EXCLUSIVE</span>
-            <h1>${hero.headline}</h1>
-            <p>${hero.subtext}</p>
-            <a href="${hero.link || '/shop'}" class="m-hero-cta" id="hero-cta">${hero.buttonText || 'SHOP NOW'}</a>
-          </div>
-          <button class="m-hero-next" onclick="app.navigate('/shop')">&gt;</button>
-          <div class="m-hero-dots"><span class="active"></span><span></span><span></span><span></span><span></span></div>
-        </section>` : ''}
+      <section class="m-hero-card" id="hero-cta" style="cursor:pointer">
+        <img src="${escapeAttr(safeImage(heroSlides[0], heroImageFallback))}" class="m-hero-image" alt="Hero" data-fallback-src="${escapeAttr(heroImageFallback)}">
+        <div class="m-hero-overlay">
+          <span class="m-hero-badge">NEW COLLECTION 2026</span>
+          <h1>${escapeHtml(hero.headline || 'PERFECT CASUAL WEAR')}</h1>
+          <p>${escapeHtml(hero.subtext || 'Under 449 #CasualStyle')}</p>
+          <button class="btn-gold">${escapeHtml(hero.buttonText || 'SHOP NOW')}</button>
+        </div>
+        <div class="m-hero-dots">${heroSlides.map((_, index) => `<span class="${index === 0 ? 'active' : ''}"></span>`).join('')}</div>
+      </section>
 
-        <section class="m-cashback-strip">
-          <span>Get 7.5% Cashback* <small>| No joining fee</small></span>
-          <button onclick="app.navigate('/shop')">Apply Now</button>
-        </section>
-
-        <section class="m-category-row-wrap">
-          <div class="m-sec-head"><h2>Men</h2><p>Top Picks</p></div>
-          <div class="m-circle-row">
-            ${circleItems.map(cat => `
-              <button class="m-circle-item" onclick="app.navigate('${cat.link || '/shop'}')">
-                <span class="m-circle-image"><img src="${cat.image || heroImageFallback}" alt="${cat.name}" data-fallback="${categoryImageFallbacks[String(cat.name || '').toUpperCase()] || heroImageFallback}" onerror="this.src=this.dataset.fallback"></span>
-                <span>${cat.name}</span>
-              </button>
+      <section class="categories-section">
+        <div class="cat-header container" style="margin-bottom: 20px;">
+          <h2>Shop by Category</h2>
+          <p>CURATED COLLECTIONS FOR EVERY OCCASION</p>
+        </div>
+        <div class="marquee-container">
+          <div class="circle-track">
+            ${[0, 1].map((copyIndex) => `
+              <div class="circle-grid" ${copyIndex === 1 ? 'aria-hidden="true"' : ''}>
+                ${circleItems.map((cat) => `
+                  <div class="circle-item" onclick="app.navigate('${safeAppLink(cat.link, '/shop')}')">
+                    <div class="circle-img-wrap">
+                      <img src="${escapeAttr(safeImage(cat.image, CATEGORY_IMAGE_FALLBACKS[String(cat.name || '').toUpperCase()] || heroImageFallback))}" alt="${escapeAttr(cat.name || 'Category')}" data-fallback-src="${escapeAttr(CATEGORY_IMAGE_FALLBACKS[String(cat.name || '').toUpperCase()] || heroImageFallback)}">
+                    </div>
+                    <span>${escapeHtml(cat.name || 'Category')}</span>
+                  </div>
+                `).join('')}
+              </div>
             `).join('')}
           </div>
-        </section>
-
-        <section class="m-category-row-wrap">
-          <div class="m-sec-head"><h2>Women</h2><p>Trending</p></div>
-          <div class="m-circle-row">
-            ${rowWomen.map(cat => `
-              <button class="m-circle-item" onclick="app.navigate('${cat.link}')">
-                <span class="m-circle-image"><img src="${cat.image}" alt="${cat.name}"></span>
-                <span>${cat.name}</span>
-              </button>
-            `).join('')}
-          </div>
-        </section>
-
-        <section class="m-category-row-wrap">
-          <div class="m-sec-head"><h2>Kids</h2><p>Everyday Essentials</p></div>
-          <div class="m-circle-row">
-            ${rowKids.map(cat => `
-              <button class="m-circle-item" onclick="app.navigate('${cat.link}')">
-                <span class="m-circle-image"><img src="${cat.image}" alt="${cat.name}"></span>
-                <span>${cat.name}</span>
-              </button>
-            `).join('')}
-          </div>
-        </section>
-
-        <section class="m-banner-strip">
-          <button class="m-banner-card" onclick="app.navigate('/shop?search=Summer Co-ords')"><img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=700&auto=format&fit=crop" alt="Summer Co-ords"><span>SUMMER CO-ORDS</span></button>
-          <button class="m-banner-card" onclick="app.navigate('/shop?search=Saree')"><img src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=700&auto=format&fit=crop" alt="Ready To Wear Sarees"><span>READY-TO-WEAR SAREES</span></button>
-          <button class="m-banner-card" onclick="app.navigate('/shop?search=Tops')"><img src="https://images.unsplash.com/photo-1581044777550-4cfa60707c03?q=80&w=700&auto=format&fit=crop" alt="Cute Tops"><span>CUTE TOPS</span></button>
-        </section>
-
-        <section class="m-pocket-section">
-          <h2>Pocket Friendly Bargain!</h2>
-          <p>Where style matches savings</p>
-          <div class="m-price-rail">
-            <button class="m-price-card" onclick="app.navigate('/shop?search=Tshirt')"><img src="https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?q=80&w=700&auto=format&fit=crop" alt="Tshirts"><div><small>Under</small><strong>Rs 349</strong><span>Tshirts</span></div></button>
-            <button class="m-price-card" onclick="app.navigate('/shop?search=Shirt')"><img src="https://images.unsplash.com/photo-1556905055-8f358a7a47b2?q=80&w=700&auto=format&fit=crop" alt="Shirts"><div><small>Under</small><strong>Rs 549</strong><span>Shirts</span></div></button>
-            <button class="m-price-card" onclick="app.navigate('/shop?search=Dress')"><img src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=700&auto=format&fit=crop" alt="Dresses"><div><small>Under</small><strong>Rs 699</strong><span>Dresses</span></div></button>
-            <button class="m-price-card" onclick="app.navigate('/shop?search=Jeans')"><img src="https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?q=80&w=700&auto=format&fit=crop" alt="Jeans"><div><small>Under</small><strong>Rs 649</strong><span>Jeans</span></div></button>
-          </div>
-          <div class="m-hero-dots compact"><span class="active"></span><span></span><span></span></div>
-        </section>
-
-        <section class="m-bestseller-categories">
-          <div class="m-sec-head stack">
-            <h2>Bestseller Categories</h2>
-            <p>Top Picks, Just For You!</p>
-          </div>
-          <div class="m-cat-large-row">
-            <button class="m-cat-large-card" onclick="app.navigate('/shop?search=Saree')">
-              <h3>Sarees</h3>
-              <img src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=700&auto=format&fit=crop" alt="Sarees">
-              <div class="m-cat-large-meta"><strong>Under Rs 1099</strong><span>Kalini</span><span>Mifera</span><span>& More</span></div>
-            </button>
-            <button class="m-cat-large-card" onclick="app.navigate('/shop?search=Kurti')">
-              <h3>Kurtis</h3>
-              <img src="https://images.unsplash.com/photo-1612336307429-8a898d10e223?q=80&w=700&auto=format&fit=crop" alt="Kurtis">
-              <div class="m-cat-large-meta"><strong>Under Rs 899</strong><span>Kalini</span><span>Anayna</span><span>& More</span></div>
-            </button>
-          </div>
-        </section>
-
-        <section class="home-products-section py-lg">
-          <div class="section-header"><h2>BESTSELLERS FOR YOU</h2><a href="/shop" class="view-all">VIEW ALL</a></div>
-          <div class="product-grid mt-md" id="best-sellers-list"><div class="skeleton-grid"></div></div>
-        </section>
-
-        <section class="home-products-section py-lg">
-          <div class="section-header"><h2>FRESH DROPS</h2><a href="/shop?sort=created_at:desc" class="view-all">VIEW ALL</a></div>
-          <div class="product-grid mt-md" id="new-arrivals-list"><div class="skeleton-grid"></div></div>
-        </section>
-
-        <section class="home-products-section py-lg">
-          <div class="section-header"><h2>TRENDING PICKS</h2><a href="/shop" class="view-all">VIEW ALL</a></div>
-          <div class="product-grid mt-md" id="trending-list"><div class="skeleton-grid"></div></div>
-        </section>
-
-        <section class="fabric-highlights py-lg">
-          <h2 class="section-title">THE FABRIC STORY</h2>
-          <div class="fabric-grid mt-md">
-            <div class="fabric-card" onclick="app.navigate('/shop?search=Linen')">
-              <img src="https://images.unsplash.com/photo-1549439602-43ebca2327af?q=80&w=2070&auto=format&fit=crop" alt="Pure Linen">
-              <div class="fabric-overlay"><h3>PURE LINEN</h3><p>Breathable & Sustainable</p></div>
-            </div>
-            <div class="fabric-card" onclick="app.navigate('/shop?search=Silk')">
-              <img src="https://images.unsplash.com/photo-1610631882987-313172e29729?q=80&w=1974&auto=format&fit=crop" alt="Heritage Silk">
-              <div class="fabric-overlay"><h3>HERITAGE SILK</h3><p>Timeless Elegance</p></div>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <section class="newsletter-section">
-        <div class="container newsletter-content">
-          <h2>JOIN THE GUGAN CLUB</h2>
-          <p>Subscribe for exclusive early access and fashion updates.</p>
-          <form class="newsletter-form mt-lg" onsubmit="event.preventDefault(); toast.success('Subscription successful!')">
-            <input type="email" placeholder="Enter your email address" required>
-            <button type="submit">SUBSCRIBE</button>
-          </form>
         </div>
       </section>
 
-      <footer class="main-footer">
-        <div class="container footer-grid">
-          <div class="footer-brand">
-            <h3>GUGAN</h3>
-            <p>Redefining modern fashion with minimalist luxury since 2024.</p>
-            <div class="social-links mt-md"><span>FB</span> <span>IG</span> <span>TW</span></div>
+      <section class="m-banner-strip">
+        <button class="m-banner-card" onclick="app.navigate('/shop?search=Summer Co-ords')">
+          <img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=700&auto=format&fit=crop" alt="Summer Co-ords">
+          <span>SUMMER CO-ORDS</span>
+        </button>
+        <button class="m-banner-card" onclick="app.navigate('/shop?search=Saree')">
+          <img src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=700&auto=format&fit=crop" alt="Ready To Wear Sarees">
+          <span>READY-TO-WEAR SAREES</span>
+        </button>
+        <button class="m-banner-card" onclick="app.navigate('/shop?search=Tops')">
+          <img src="https://images.unsplash.com/photo-1581044777550-4cfa60707c03?q=80&w=700&auto=format&fit=crop" alt="Cute Tops">
+          <span>CUTE TOPS</span>
+        </button>
+      </section>
+
+      <section class="category-showcase-section container">
+        <div class="section-header category-showcase-header">
+          <h2 style="font-family:var(--font-serif); font-size:2rem;">SHOP BY STYLE STORIES</h2>
+          <p>Men, Women, Boys and Girls picks in swipeable rows</p>
+        </div>
+        ${DEFAULT_SHOWCASE_CATEGORIES.map((category) => `
+          <div class="category-showcase-block">
+            <div class="category-showcase-title-row">
+              <div>
+                <span class="category-showcase-kicker">${escapeHtml(category.toUpperCase())}</span>
+                <h3>${escapeHtml(category)} Collection</h3>
+              </div>
+              <button class="category-showcase-link" onclick="app.navigate('${CATEGORY_LINKS[category]}')">VIEW ALL</button>
+            </div>
+            <div class="category-showcase-rail" id="showcase-${category.toLowerCase()}">
+              <div class="showcase-loading">Loading ${escapeHtml(category)} styles...</div>
+            </div>
           </div>
-          <div class="footer-links">
-            <h4>SHOP</h4>
-            <a href="/shop">Men</a><a href="/shop">Women</a><a href="/shop">Kids</a><a href="/shop">Accessories</a>
-          </div>
-          <div class="footer-links">
-            <h4>SUPPORT</h4>
-            <a href="#">Contact Us</a><a href="#">Shipping</a><a href="#">Returns</a><a href="#">FAQs</a>
-          </div>
-          <div class="footer-links">
-            <h4>LEGAL</h4>
-            <a href="#">Privacy Policy</a><a href="#">Terms of Service</a>
+          ${category === 'Girls' ? `
+            <section class="home-video-section">
+              <div class="home-video-copy">
+                <span class="category-showcase-kicker">Featured Video</span>
+                <h3>Watch The Latest Store Story</h3>
+                <p>Update this clip anytime from the admin hero settings to highlight a campaign, product drop, or walkthrough.</p>
+                <div class="home-video-meta">
+                  <span>Campaign Reel</span>
+                  <span>Store Edit</span>
+                  <span>Autoplay Off</span>
+                </div>
+              </div>
+              <div class="home-video-frame">
+                <div class="home-video-frame-top">
+                  <span class="home-video-dot"></span>
+                  <span class="home-video-dot"></span>
+                  <span class="home-video-dot"></span>
+                  <strong>Gugan Video Story</strong>
+                </div>
+                <video controls playsinline preload="metadata" poster="${escapeAttr(heroImageFallback)}">
+                  <source src="${escapeAttr(homeVideoUrl)}" type="video/mp4">
+                </video>
+              </div>
+            </section>
+          ` : ''}
+        `).join('')}
+      </section>
+
+      <section class="m-pocket-section container">
+        <div class="cat-header">
+          <h2>Pocket Friendly Bargain!</h2>
+          <p>WHERE STYLE MATCHES SAVINGS</p>
+        </div>
+        <div class="m-price-rail">
+          <button class="m-price-card" onclick="app.navigate('/shop?search=Tshirt')">
+            <img src="https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?q=80&w=700&auto=format&fit=crop" alt="Tshirts">
+            <div><small>Under</small><strong>Rs 349</strong><span>Tshirts</span></div>
+          </button>
+          <button class="m-price-card" onclick="app.navigate('/shop?search=Shirt')">
+            <img src="https://images.unsplash.com/photo-1556905055-8f358a7a47b2?q=80&w=700&auto=format&fit=crop" alt="Shirts">
+            <div><small>Under</small><strong>Rs 549</strong><span>Shirts</span></div>
+          </button>
+          <button class="m-price-card" onclick="app.navigate('/shop?search=Dress')">
+            <img src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=700&auto=format&fit=crop" alt="Dresses">
+            <div><small>Under</small><strong>Rs 699</strong><span>Dresses</span></div>
+          </button>
+          <button class="m-price-card" onclick="app.navigate('/shop?search=Jeans')">
+            <img src="https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?q=80&w=700&auto=format&fit=crop" alt="Jeans">
+            <div><small>Under</small><strong>Rs 649</strong><span>Jeans</span></div>
+          </button>
+        </div>
+      </section>
+
+      <section class="m-bestseller-categories container">
+        <div class="cat-header">
+          <h2>Bestseller Categories</h2>
+          <p>TOP PICKS, JUST FOR YOU!</p>
+        </div>
+        <div class="m-cat-large-row">
+          <button class="m-cat-large-card" onclick="app.navigate('/shop?search=Saree')">
+            <h3>Sarees</h3>
+            <img src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=700&auto=format&fit=crop" alt="Sarees">
+            <div class="m-cat-large-meta">
+              <strong>UNDER RS 1099</strong>
+              <div>KALINI | MIFERA | & MORE</div>
+            </div>
+          </button>
+          <button class="m-cat-large-card" onclick="app.navigate('/shop?search=Kurti')">
+            <h3>Kurtis</h3>
+            <img src="https://images.unsplash.com/photo-1612336307429-8a898d10e223?q=80&w=700&auto=format&fit=crop" alt="Kurtis">
+            <div class="m-cat-large-meta">
+              <strong>UNDER RS 899</strong>
+              <div>KALINI | ANAYNA | & MORE</div>
+            </div>
+          </button>
+        </div>
+      </section>
+
+      <section class="home-products-section py-lg container">
+        <div class="section-header">
+          <h2 style="font-family:var(--font-serif); font-size:2rem;">BESTSELLERS FOR YOU</h2>
+          <a href="/shop" class="view-all" style="font-size:0.8rem; font-weight:700; color:var(--c-gold);">VIEW ALL</a>
+        </div>
+        <div class="product-grid mt-md" id="best-sellers-list"><div class="skeleton-grid"></div></div>
+      </section>
+
+      <section class="testimonials-section">
+        <div class="container">
+          <div class="section-header category-showcase-header">
+            <h2 style="font-family:var(--font-serif); font-size:2rem;">What Customers Say</h2>
+            <p>Real shopper feedback moving across the storefront</p>
           </div>
         </div>
-        <div class="footer-bottom mt-xl"><p>© 2026 Gugan Fashions. All Rights Reserved.</p></div>
-      </footer>
+        <div class="testimonials-marquee">
+          <div class="testimonials-track">
+            ${[0, 1].map(() => `
+              <div class="testimonials-group">
+                ${TESTIMONIALS.map((item) => `
+                  <article class="testimonial-card">
+                    <p>${escapeHtml(item.text)}</p>
+                    <strong>${escapeHtml(item.name)}</strong>
+                  </article>
+                `).join('')}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </section>
     </div>
   `;
 
-  document.getElementById('hero-cta')?.addEventListener('click', (e) => { e.preventDefault(); navigate(hero.link || '/shop'); });
+  document.getElementById('hero-cta')?.addEventListener('click', (e) => { e.preventDefault(); navigate(safeHeroLink); });
+  initHeroRotator(heroSlides, heroImageFallback);
   renderHomeSections();
 };
 const renderHomeSections = async () => {
   const containers = {
     best: document.getElementById('best-sellers-list'),
     new: document.getElementById('new-arrivals-list'),
-    trending: document.getElementById('trending-list')
+    trending: document.getElementById('trending-list'),
+    men: document.getElementById('showcase-men'),
+    women: document.getElementById('showcase-women'),
+    boys: document.getElementById('showcase-boys'),
+    girls: document.getElementById('showcase-girls'),
+    electronics: document.getElementById('showcase-electronics'),
+    footwear: document.getElementById('showcase-footwear'),
+    accessories: document.getElementById('showcase-accessories'),
+    stationeries: document.getElementById('showcase-stationeries'),
   };
 
   try {
-    const [bestData, newData, trendingData] = await Promise.all([
+    const [bestData, newData, trendingData, menData, womenData, boysData, girlsData, electronicsData, footwearData, accessoriesData, stationeriesData] = await Promise.all([
       productService.getProducts({ isBestSeller: true, limit: 4 }),
       productService.getProducts({ limit: 4, sort: 'created_at:desc' }), // logic for new
-      productService.getProducts({ isTrending: true, limit: 4 })
+      productService.getProducts({ isTrending: true, limit: 4 }),
+      productService.getProducts({ category: 'Men', limit: 4 }),
+      productService.getProducts({ category: 'Women', limit: 4 }),
+      productService.getProducts({ category: 'Boys', limit: 4 }),
+      productService.getProducts({ category: 'Girls', limit: 4 }),
+      productService.getProducts({ category: 'Electronics', limit: 4 }),
+      productService.getProducts({ category: 'Footwear', limit: 4 }),
+      productService.getProducts({ category: 'Accessories', limit: 4 }),
+      productService.getProducts({ category: 'Stationeries', limit: 4 }),
     ]);
 
     if (containers.best) {
@@ -1638,15 +2249,86 @@ const renderHomeSections = async () => {
     if (containers.trending) {
        containers.trending.innerHTML = trendingData.products.length ? trendingData.products.map(p => ProductCard(p)).join('') : '<p>Checking what\'s popular...</p>';
     }
+    if (containers.men) {
+      containers.men.innerHTML = menData.products.length ? menData.products.map(renderShowcaseProductCard).join('') : '<p class="showcase-empty">More men styles coming soon.</p>';
+    }
+    if (containers.women) {
+      containers.women.innerHTML = womenData.products.length ? womenData.products.map(renderShowcaseProductCard).join('') : '<p class="showcase-empty">More women styles coming soon.</p>';
+    }
+    if (containers.boys) {
+      containers.boys.innerHTML = boysData.products.length ? boysData.products.map(renderShowcaseProductCard).join('') : '<p class="showcase-empty">More boys styles coming soon.</p>';
+    }
+    if (containers.girls) {
+      containers.girls.innerHTML = girlsData.products.length ? girlsData.products.map(renderShowcaseProductCard).join('') : '<p class="showcase-empty">More girls styles coming soon.</p>';
+    }
+    if (containers.electronics) {
+      containers.electronics.innerHTML = electronicsData.products.length ? electronicsData.products.map(renderShowcaseProductCard).join('') : '<p class="showcase-empty">More electronics coming soon.</p>';
+    }
+    if (containers.footwear) {
+      containers.footwear.innerHTML = footwearData.products.length ? footwearData.products.map(renderShowcaseProductCard).join('') : '<p class="showcase-empty">More footwear coming soon.</p>';
+    }
+    if (containers.accessories) {
+      containers.accessories.innerHTML = accessoriesData.products.length ? accessoriesData.products.map(renderShowcaseProductCard).join('') : '<p class="showcase-empty">More accessories coming soon.</p>';
+    }
+    if (containers.stationeries) {
+      containers.stationeries.innerHTML = stationeriesData.products.length ? stationeriesData.products.map(renderShowcaseProductCard).join('') : '<p class="showcase-empty">More stationery coming soon.</p>';
+    }
 
     // Attach click handlers to all new cards
     document.querySelectorAll('.home-page .product-card').forEach(card => {
        card.onclick = () => navigate(`/product/${card.dataset.id}`);
     });
 
+    initCategoryMarquee();
+    initTestimonialsMarquee();
+
   } catch (err) {
     console.error('Failed to load home sections:', err);
   }
+};
+
+const refreshAdminShell = (user) => {
+  const sidebar = document.querySelector('.admin-sidebar');
+  if (!sidebar || sidebar.dataset.version === 'executive') return;
+
+  const navItems = [
+    { path: '/admin', icon: '&#128202;', label: 'Overview' },
+    { path: '/admin/products', icon: '&#128087;', label: 'Products' },
+    { path: '/admin/categories', icon: '&#128450;', label: 'Collections' },
+    { path: '/admin/orders', icon: '&#128230;', label: 'Orders' },
+    { path: '/admin/cms/hero', icon: '&#128444;', label: 'Experience' },
+  ];
+  const displayName = user?.profile?.full_name || user?.user_metadata?.full_name || user?.email || 'Admin';
+
+  sidebar.dataset.version = 'executive';
+  sidebar.innerHTML = `
+    <div class="admin-brand">
+      <div class="admin-brand-mark">GF</div>
+      <div>
+        <h3>Gugan Console</h3>
+        <p>Commerce Command Center</p>
+      </div>
+    </div>
+    <div class="admin-operator">
+      <span>Signed in as</span>
+      <strong>${escapeHtml(displayName)}</strong>
+    </div>
+    <ul class="admin-nav">
+      ${navItems.map(item => `
+        <li class="admin-nav-item" data-path="${item.path}">
+          <span class="admin-nav-icon">${item.icon}</span>
+          <span>${item.label}</span>
+        </li>
+      `).join('')}
+    </ul>
+    <div class="admin-sidebar-footer">
+      <button onclick="app.navigate('/')" class="btn-secondary-sm">Back to Store</button>
+    </div>
+  `;
+
+  sidebar.querySelectorAll('.admin-nav-item').forEach(item => {
+    item.onclick = () => navigate(item.dataset.path);
+  });
 };
 
 
@@ -1655,6 +2337,3 @@ if (document.readyState === 'loading') {
 } else {
   initApp();
 }
-
-
-
