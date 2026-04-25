@@ -575,17 +575,17 @@ const renderAuthPage = (type = 'login') => {
           ${isSignup ? `
             <div class="form-group">
               <label for="auth-full-name">Full Name</label>
-              <input type="text" id="auth-full-name" placeholder="E.g. Alexander McQueen" required>
+              <input type="text" id="auth-full-name" placeholder="E.g. Alexander McQueen" autocomplete="name" required>
             </div>
           ` : ''}
           <div class="form-group">
             <label for="auth-email">Email Address</label>
-            <input type="email" id="auth-email" placeholder="name@luxury.com" required>
+            <input type="email" id="auth-email" placeholder="name@luxury.com" autocomplete="email" required>
             <div id="auth-email-errors" class="validation-info"></div>
           </div>
           <div class="form-group">
             <label for="auth-password">Password</label>
-            <input type="password" id="auth-password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" required>
+            <input type="password" id="auth-password" placeholder="Enter your password" autocomplete="${isSignup ? 'new-password' : 'current-password'}" required>
             <div id="auth-form-error" class="validation-info"></div>
           </div>
           <button type="submit" class="btn-gold-lg" id="auth-route-submit">${isSignup ? 'CREATE ACCOUNT' : 'LOG IN'}</button>
@@ -876,14 +876,16 @@ const renderNavbar = (user = store.getState().user) => {
 
     <div class="mobile-drawer-overlay" id="mobile-overlay"></div>
     <div class="mobile-drawer" id="mobile-drawer">
+      <div class="mobile-drawer-top">
+        <div class="mobile-action-links">
+          <a href="/cart" class="mobile-nav-item">MY CART</a>
+          <a href="#" id="mobile-profile-action">${user ? 'LOGOUT' : 'LOGIN / SIGNUP'}</a>
+        </div>
+      </div>
       <div class="mobile-nav-links">
         <a href="/" class="mobile-nav-item">HOME</a>
         <a href="/shop" class="mobile-nav-item">SHOP ALL</a>
         ${CATEGORY_NAMES.map((category) => `<a href="${CATEGORY_LINKS[category]}" class="mobile-nav-item">${escapeHtml(category.toUpperCase())}</a>`).join('')}
-      </div>
-      <div class="mobile-action-links">
-        <a href="/cart" class="mobile-nav-item">MY CART</a>
-        <a href="#" id="mobile-profile-action">${user ? 'LOGOUT' : 'LOGIN / SIGNUP'}</a>
       </div>
     </div>
   `;
@@ -2337,3 +2339,4 @@ if (document.readyState === 'loading') {
 } else {
   initApp();
 }
+

@@ -181,19 +181,25 @@ ul { list-style: none; }
   font-weight: 600;
   color: var(--c-black);
 }
-.mobile-action-links {
-  margin-top: auto;
+.mobile-drawer-top {
   display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding-top: 40px;
-  border-top: 1px solid var(--c-gray-100);
+  justify-content: flex-end;
+}
+.mobile-action-links {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 .mobile-action-links a {
   font-size: 0.9rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  display: inline-flex;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 /* ── HERO ── */
@@ -2740,15 +2746,29 @@ body.admin-mode .btn-icon {
     min-width: 0;
   }
   .logo img { max-height: 30px; }
-  .nav-right { gap: 10px; }
+  .nav-right {
+    gap: 8px;
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
   .search-bar { display: none; } /* Search moved to drawer/overlay usually, but for now just hide */
   .action-links {
+    display: flex;
+    align-items: center;
     gap: 12px;
-    font-size: 0.64rem;
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
   }
   .action-links #wishlist-link,
-  .action-links #profile-action {
+  .action-links #admin-link {
     display: none;
+  }
+  .action-links #profile-action,
+  .action-links #cart-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
   }
   .mobile-menu-toggle {
     font-size: 0;
@@ -2763,6 +2783,17 @@ body.admin-mode .btn-icon {
     font-size: 1.35rem;
     line-height: 1;
     color: var(--c-black);
+  }
+  .mobile-drawer {
+    width: min(84vw, 360px);
+    padding: 92px 24px 32px;
+  }
+  .mobile-action-links {
+    gap: 16px;
+  }
+  .mobile-action-links a {
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
   }
   
   .m-hero-card { height: 48vh; min-height: 300px; }
