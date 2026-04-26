@@ -64,7 +64,9 @@ const DEFAULT_HERO_SLIDES = [
   'https://images.unsplash.com/photo-1445205170230-053b83016050?q=80&w=1600&auto=format&fit=crop',
 ];
 const DEFAULT_SHOWCASE_CATEGORIES = ['Men', 'Women', 'Boys', 'Girls', 'Electronics', 'Footwear', 'Accessories', 'Stationeries'];
-const DEFAULT_HOME_VIDEO_URL = 'https://samplelib.com/lib/preview/mp4/sample-5s.mp4';
+const DEFAULT_HOME_VIDEO_URL = 'https://cdn.pixabay.com/video/2024/02/16/200729-913634339_large.mp4';
+const FALLBACK_HOME_VIDEO_URL = 'https://samplelib.com/lib/preview/mp4/sample-5s.mp4';
+const DEFAULT_HOME_VIDEO_POSTER = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=1600&auto=format&fit=crop';
 const TESTIMONIALS = [
   { name: 'Aarav S.', text: 'The fit and finish felt premium right away. Delivery was quick and the styling looked exactly like the photos.' },
   { name: 'Nithya R.', text: 'Loved the curation. I found outfits for myself and my kids in one place without scrolling through clutter.' },
@@ -376,6 +378,47 @@ const initTestimonialsMarquee = () => {
   };
 };
 
+const initHomeVideo = () => {
+  const section = document.querySelector('.immersive-video-section');
+  const video = section?.querySelector('#home-fashion-video');
+  const toggle = section?.querySelector('#home-play-btn');
+  const iconPath = toggle?.querySelector('path');
+  if (!section || !video || !toggle || !iconPath) return;
+
+  const syncState = () => {
+    const paused = video.paused;
+    toggle.setAttribute('aria-pressed', String(!paused));
+    toggle.setAttribute('aria-label', paused ? 'Play home fashion video' : 'Pause home fashion video');
+    iconPath.setAttribute('d', paused ? 'M8 5v14l11-7z' : 'M8 5h3v14H8zm5 0h3v14h-3z');
+    section.classList.toggle('is-video-paused', paused);
+  };
+
+  const togglePlayback = (event) => {
+    event.preventDefault();
+    if (video.paused) {
+      video.play().catch(() => { });
+    } else {
+      video.pause();
+    }
+    syncState();
+  };
+
+  toggle.addEventListener('click', togglePlayback);
+  video.addEventListener('play', syncState);
+  video.addEventListener('pause', syncState);
+  video.addEventListener('loadeddata', () => section.classList.add('is-video-ready'), { once: true });
+  video.addEventListener('error', () => {
+    if (video.dataset.fallbackApplied === 'true') return;
+    video.dataset.fallbackApplied = 'true';
+    video.src = FALLBACK_HOME_VIDEO_URL;
+    video.load();
+    video.play().catch(() => { });
+  }, { once: true });
+
+  video.play().catch(() => { });
+  syncState();
+};
+
 const installGlobalImageFallbacks = () => {
   if (window.__guganImageFallbacksInstalled) return;
   window.__guganImageFallbacksInstalled = true;
@@ -416,8 +459,8 @@ const showToast = (message, type = 'success', duration = 3500) => {
 
 window.toast = {
   success: (m) => showToast(m, 'success'),
-  error:   (m) => showToast(m, 'error'),
-  info:    (m) => showToast(m, 'info'),
+  error: (m) => showToast(m, 'error'),
+  info: (m) => showToast(m, 'info'),
   warning: (m) => showToast(m, 'warning'),
 };
 const toast = window.toast;
@@ -604,8 +647,8 @@ const renderAuthPage = (type = 'login') => {
         </form>
         <p class="auth-page-switch">
           ${isSignup
-            ? 'Already a member? <a href="/login" id="switch-auth-route">Login here</a>'
-            : 'New to Gugan Fashions? <a href="/signup" id="switch-auth-route">Join now</a>'}
+      ? 'Already a member? <a href="/login" id="switch-auth-route">Login here</a>'
+      : 'New to Gugan Fashions? <a href="/signup" id="switch-auth-route">Join now</a>'}
         </p>
       </div>
     </section>
@@ -738,7 +781,7 @@ const renderWishlist = async () => {
 
     // Attach click handlers
     grid.querySelectorAll('.product-card').forEach(card => {
-       card.onclick = () => navigate(`/product/${card.dataset.id}`);
+      card.onclick = () => navigate(`/product/${card.dataset.id}`);
     });
   } catch (err) {
     console.error('Failed to load wishlist:', err);
@@ -966,7 +1009,7 @@ const renderNavbar = (user = store.getState().user) => {
 
   document.getElementById('profile-action').onclick = (e) => {
     e.preventDefault();
-    if (user) { if (confirm('Logout?')) authService.signOut(); } 
+    if (user) { if (confirm('Logout?')) authService.signOut(); }
     else navigate('/login');
   };
 
@@ -1233,7 +1276,7 @@ const adminProductForm = async (container, product) => {
   try {
     const config = await configService.getHomepageConfig();
     catItems = config.categories?.items?.map(c => c.name) || [];
-  } catch (_) {}
+  } catch (_) { }
   const allCats = [...new Set([...CATEGORIES, ...catItems])];
   const selectedSizes = product?.sizes || ['S', 'M', 'L', 'XL'];
 
@@ -1681,7 +1724,7 @@ let currentFilters = {
 const renderShop = async () => {
   const main = document.getElementById('router-view');
   const urlParams = new URLSearchParams(window.location.search);
-  
+
   // Sync URL params to filter state for initial load
   currentFilters.category = urlParams.get('category') || null;
   currentFilters.search = urlParams.get('search') || '';
@@ -1770,7 +1813,7 @@ const renderShop = async () => {
       renderShop(); // Full re-render to update UI state of buttons
       return;
     }
-    
+
     currentFilters.offset = 0; // Reset pagination
     fetchShopProducts();
   };
@@ -1792,7 +1835,7 @@ const fetchShopProducts = async (append = false) => {
   const grid = document.getElementById('shop-product-grid');
   const countEl = document.getElementById('shop-results-count');
   const loadMoreWrap = document.getElementById('load-more-wrap');
-  
+
   if (!append) grid.innerHTML = '<div class="skeleton-grid"></div>';
 
   try {
@@ -1809,8 +1852,8 @@ const fetchShopProducts = async (append = false) => {
     });
 
     countEl.textContent = `Showing ${products.length} of ${total} products`;
-    
-    const html = products.length 
+
+    const html = products.length
       ? products.map(p => ProductCard(p)).join('')
       : '<div class="empty-state"><h3>No products found</h3><p>Try adjusting your search or filters.</p></div>';
 
@@ -1826,7 +1869,7 @@ const fetchShopProducts = async (append = false) => {
 
     // Attach click handlers
     grid.querySelectorAll('.product-card').forEach(card => {
-       card.onclick = () => navigate(`/product/${card.dataset.id}`);
+      card.onclick = () => navigate(`/product/${card.dataset.id}`);
     });
 
   } catch (err) {
@@ -1843,7 +1886,7 @@ const renderProductDetail = async (id) => {
   main.innerHTML = `<div class="container py-xl"><div class="loading">Loading...</div></div>`;
   try {
     let product;
-    try { product = await productService.getProductById(id); } catch (_) {}
+    try { product = await productService.getProductById(id); } catch (_) { }
     if (!product) return navigate('/shop');
 
     const wishlist = store.getState().wishlist || [];
@@ -1868,11 +1911,11 @@ const renderProductDetail = async (id) => {
           
           <div class="pdp-price-wrap">
             ${discountedPrice
-              ? `<span class="pdp-price">Rs. ${discountedPrice.toLocaleString()}</span>
+        ? `<span class="pdp-price">Rs. ${discountedPrice.toLocaleString()}</span>
                  <span class="pdp-original-price">Rs. ${price.toLocaleString()}</span>
                  <span class="badge badge-warning" style="margin-left:10px">${discount}% OFF</span>`
-              : `<span class="pdp-price">Rs. ${price.toLocaleString()}</span>`
-            }
+        : `<span class="pdp-price">Rs. ${price.toLocaleString()}</span>`
+      }
           </div>
           <p class="pdp-taxes">inclusive of all taxes</p>
 
@@ -2026,15 +2069,15 @@ const renderCart = () => {
     try {
       const orderData = {
         user_id: user.id,
-        customer_details: { 
+        customer_details: {
           name: user.profile?.full_name || user.user_metadata?.full_name || user.email,
-          email: user.email 
+          email: user.email
         },
         items: cart,
         total_amount: total,
         status: 'ORDER_PLACED'
       };
-      
+
       await orderService.createOrder(orderData);
       actions.clearCart();
       toast.success('Order placed successfully!');
@@ -2111,65 +2154,95 @@ const renderHome = async () => {
         </div>
       </section>
 
-      <section class="m-banner-strip">
-        <button class="m-banner-card" onclick="app.navigate('/shop?search=Summer Co-ords')">
-          <img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=700&auto=format&fit=crop" alt="Summer Co-ords">
-          <span>SUMMER CO-ORDS</span>
-        </button>
-        <button class="m-banner-card" onclick="app.navigate('/shop?search=Saree')">
-          <img src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=700&auto=format&fit=crop" alt="Ready To Wear Sarees">
-          <span>READY-TO-WEAR SAREES</span>
-        </button>
-        <button class="m-banner-card" onclick="app.navigate('/shop?search=Tops')">
-          <img src="https://images.unsplash.com/photo-1581044777550-4cfa60707c03?q=80&w=700&auto=format&fit=crop" alt="Cute Tops">
-          <span>CUTE TOPS</span>
-        </button>
+
+      <section class="category-showcase-section">
+        <div class="container showcase-container">
+          ${DEFAULT_SHOWCASE_CATEGORIES.map((category) => `
+            <div class="category-showcase-block">
+              <div class="category-showcase-title-row">
+                <div>
+                  <span class="category-showcase-kicker">${escapeHtml(category.toUpperCase())}</span>
+                  <h3>${escapeHtml(category)} Collection</h3>
+                </div>
+                <button class="category-showcase-link" onclick="app.navigate('${CATEGORY_LINKS[category]}')">VIEW ALL</button>
+              </div>
+              <div class="category-showcase-rail ${['Electronics', 'Accessories', 'Stationeries', 'Footwear'].includes(category) ? 'm-modern-grid-layout' : ''} ${['Accessories', 'Stationeries'].includes(category) ? 'cols-4' : ''}" id="showcase-${category.toLowerCase()}">
+                <div class="showcase-loading">Loading ${escapeHtml(category)} styles...</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
       </section>
 
-      <section class="category-showcase-section container">
-        <div class="section-header category-showcase-header">
-          <h2 style="font-family:var(--font-serif); font-size:2rem;">SHOP BY STYLE STORIES</h2>
-          <p>Men, Women, Boys and Girls picks in swipeable rows</p>
+      <section class="immersive-video-section">
+        <div class="immersive-video-bg">
+          <video
+            id="home-fashion-video"
+            class="video-bg-media"
+            autoplay
+            muted
+            loop
+            playsinline
+            preload="metadata"
+            poster="${escapeAttr(DEFAULT_HOME_VIDEO_POSTER)}"
+          >
+            <source src="${escapeAttr(homeVideoUrl)}" type="video/mp4">
+            <source src="${escapeAttr(FALLBACK_HOME_VIDEO_URL)}" type="video/mp4">
+          </video>
+          <div class="video-overlay"></div>
         </div>
-        ${DEFAULT_SHOWCASE_CATEGORIES.map((category) => `
-          <div class="category-showcase-block">
-            <div class="category-showcase-title-row">
-              <div>
-                <span class="category-showcase-kicker">${escapeHtml(category.toUpperCase())}</span>
-                <h3>${escapeHtml(category)} Collection</h3>
+        <div class="immersive-video-content container" style="justify-content: flex-end; padding-left: 30px; padding-right: 30px;">
+          <div class="video-action-right">
+            <button class="play-button-wrapper" id="home-play-btn" type="button" aria-label="Pause home fashion video" aria-pressed="true">
+              <div class="play-button">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5h3v14H8zm5 0h3v14h-3z"/>
+                </svg>
               </div>
-              <button class="category-showcase-link" onclick="app.navigate('${CATEGORY_LINKS[category]}')">VIEW ALL</button>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="home-feature-strip">
+        <div class="container feature-strip-grid">
+          <div class="feature-item">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 18H3c-1.1 0-2-.9-2-2V5c0-1.1.9-2 2-2h14c1.1 0 2 .9 2 2v10M16 18h2c1.1 0 2-.9 2-2M9 18h2M12 18h2M1 8h18M5 21a2 2 0 100-4 2 2 0 000 4zm13 0a2 2 0 100-4 2 2 0 000 4z"/></svg>
             </div>
-            <div class="category-showcase-rail" id="showcase-${category.toLowerCase()}">
-              <div class="showcase-loading">Loading ${escapeHtml(category)} styles...</div>
+            <div class="feature-text">
+              <strong>FREE DELIVERY</strong>
+              <span>Free shipping worldwide</span>
             </div>
           </div>
-          ${category === 'Girls' ? `
-            <section class="home-video-section">
-              <div class="home-video-copy">
-                <span class="category-showcase-kicker">Featured Video</span>
-                <h3>Watch The Latest Store Story</h3>
-                <p>Update this clip anytime from the admin hero settings to highlight a campaign, product drop, or walkthrough.</p>
-                <div class="home-video-meta">
-                  <span>Campaign Reel</span>
-                  <span>Store Edit</span>
-                  <span>Autoplay Off</span>
-                </div>
-              </div>
-              <div class="home-video-frame">
-                <div class="home-video-frame-top">
-                  <span class="home-video-dot"></span>
-                  <span class="home-video-dot"></span>
-                  <span class="home-video-dot"></span>
-                  <strong>Gugan Video Story</strong>
-                </div>
-                <video controls playsinline preload="metadata" poster="${escapeAttr(heroImageFallback)}">
-                  <source src="${escapeAttr(homeVideoUrl)}" type="video/mp4">
-                </video>
-              </div>
-            </section>
-          ` : ''}
-        `).join('')}
+          <div class="feature-item">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M16 8l-4 4-4-4M12 12v7"/></svg>
+            </div>
+            <div class="feature-text">
+              <strong>MONEY BACK</strong>
+              <span>Refund in 30 days</span>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            </div>
+            <div class="feature-text">
+              <strong>SECURE PAYMENT</strong>
+              <span>No transaction fees</span>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+            </div>
+            <div class="feature-text">
+              <strong>MEMBER DISCOUNT</strong>
+              <span>Free deals every week</span>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="m-pocket-section container">
@@ -2257,6 +2330,7 @@ const renderHome = async () => {
 
   document.getElementById('hero-cta')?.addEventListener('click', (e) => { e.preventDefault(); navigate(safeHeroLink); });
   initHeroRotator(heroSlides, heroImageFallback);
+  initHomeVideo();
   renderHomeSections();
 };
 const renderHomeSections = async () => {
@@ -2293,10 +2367,10 @@ const renderHomeSections = async () => {
       containers.best.innerHTML = bestData.products.length ? bestData.products.map(p => ProductCard(p)).join('') : '<p>More styles coming soon.</p>';
     }
     if (containers.new) {
-       containers.new.innerHTML = newData.products.length ? newData.products.map(p => ProductCard(p)).join('') : '<p>Latest arrivals are on their way.</p>';
+      containers.new.innerHTML = newData.products.length ? newData.products.map(p => ProductCard(p)).join('') : '<p>Latest arrivals are on their way.</p>';
     }
     if (containers.trending) {
-       containers.trending.innerHTML = trendingData.products.length ? trendingData.products.map(p => ProductCard(p)).join('') : '<p>Checking what\'s popular...</p>';
+      containers.trending.innerHTML = trendingData.products.length ? trendingData.products.map(p => ProductCard(p)).join('') : '<p>Checking what\'s popular...</p>';
     }
     const renderSubcatCards = (items, sprite) => items.map((cat, index) => `
       <article class="m-subcat-card" onclick="app.navigate('/shop?search=${encodeURIComponent(cat.name)}')">
@@ -2350,21 +2424,42 @@ const renderHomeSections = async () => {
     }
     if (containers.electronics) {
       const electronicsSubcats = [
-        { name: 'Earbuds' },
-        { name: 'Smart Watches' },
-        { name: 'Speakers' },
-        { name: 'Chargers' }
+        { name: 'Smart Phones', image: 'https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=600&auto=format&fit=crop' },
+        { name: 'Laptops', image: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=600&auto=format&fit=crop' },
+        { name: 'Earbuds', image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=600&auto=format&fit=crop' },
+        { name: 'Tablets', image: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?q=80&w=600&auto=format&fit=crop' },
+        { name: 'Smart Watches', image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=600&auto=format&fit=crop' }
       ];
-      containers.electronics.innerHTML = renderSubcatCards(electronicsSubcats, '/category-cards/electronics-categories.png');
+      containers.electronics.innerHTML = electronicsSubcats.map((cat) => `
+        <div class="m-modern-cat-card" onclick="app.navigate('/shop?search=${encodeURIComponent(cat.name)}')">
+          <div class="m-modern-cat-card-img">
+            <img src="${cat.image}" alt="${cat.name}">
+          </div>
+          <div class="m-modern-cat-card-label">
+            ${escapeHtml(cat.name)}
+          </div>
+        </div>
+      `).join('');
     }
     if (containers.footwear) {
       const footwearSubcats = [
         { name: 'Sneakers' },
         { name: 'Loafers' },
         { name: 'Sandals' },
-        { name: 'Trainers' }
+        { name: 'Trainers' },
+        { name: 'Boots', image: 'https://images.unsplash.com/photo-1608256246200-53e635b5b65f?q=80&w=600&auto=format&fit=crop' }
       ];
-      containers.footwear.innerHTML = renderSubcatCards(footwearSubcats, '/category-cards/footwear-categories.png');
+      containers.footwear.innerHTML = footwearSubcats.map((cat, index) => `
+        <div class="m-modern-cat-card" onclick="app.navigate('/shop?search=${encodeURIComponent(cat.name)}')">
+          <div class="m-modern-cat-card-img">
+            ${cat.image 
+              ? `<img src="${cat.image}" alt="${cat.name}">`
+              : `<div class="m-subcat-card-media" style="--subcat-image: url('/category-cards/footwear-categories.png'); --subcat-size: 400% 100%; --subcat-position: ${index * 33.333333}% 50%;"></div>`
+            }
+          </div>
+          <div class="m-modern-cat-card-label">${escapeHtml(cat.name)}</div>
+        </div>
+      `).join('');
     }
     if (containers.accessories) {
       const accessoriesSubcats = [
@@ -2373,7 +2468,14 @@ const renderHomeSections = async () => {
         { name: 'Sunglasses' },
         { name: 'Backpacks' }
       ];
-      containers.accessories.innerHTML = renderSubcatCards(accessoriesSubcats, '/category-cards/accessories-categories.png');
+      containers.accessories.innerHTML = accessoriesSubcats.map((cat, index) => `
+        <div class="m-modern-cat-card" onclick="app.navigate('/shop?search=${encodeURIComponent(cat.name)}')">
+          <div class="m-modern-cat-card-img">
+            <div class="m-subcat-card-media" style="--subcat-image: url('/category-cards/accessories-categories.png'); --subcat-size: 400% 100%; --subcat-position: ${index * 33.333333}% 50%;"></div>
+          </div>
+          <div class="m-modern-cat-card-label">${escapeHtml(cat.name)}</div>
+        </div>
+      `).join('');
     }
     if (containers.stationeries) {
       const stationeriesSubcats = [
@@ -2382,12 +2484,19 @@ const renderHomeSections = async () => {
         { name: 'Planners' },
         { name: 'School Kits' }
       ];
-      containers.stationeries.innerHTML = renderSubcatCards(stationeriesSubcats, '/category-cards/stationeries-categories.png');
+      containers.stationeries.innerHTML = stationeriesSubcats.map((cat, index) => `
+        <div class="m-modern-cat-card" onclick="app.navigate('/shop?search=${encodeURIComponent(cat.name)}')">
+          <div class="m-modern-cat-card-img">
+            <div class="m-subcat-card-media" style="--subcat-image: url('/category-cards/stationeries-categories.png'); --subcat-size: 500% 100%; --subcat-position: ${3.125 + index * 31.25}% 50%;"></div>
+          </div>
+          <div class="m-modern-cat-card-label">${escapeHtml(cat.name)}</div>
+        </div>
+      `).join('');
     }
 
     // Attach click handlers to all new cards
     document.querySelectorAll('.home-page .product-card').forEach(card => {
-       card.onclick = () => navigate(`/product/${card.dataset.id}`);
+      card.onclick = () => navigate(`/product/${card.dataset.id}`);
     });
 
     initCategoryMarquee();
