@@ -4420,6 +4420,8 @@ body.admin-mode .btn-icon {
 }
 
 
+
+
 .m-modern-cat-card {
   display: flex;
   flex-direction: column;
@@ -4470,6 +4472,11 @@ body.admin-mode .btn-icon {
     gap: 12px !important;
     padding-bottom: 15px !important;
     scrollbar-width: none;
+  }
+
+  .m-modern-grid-layout .product-card {
+    flex: 0 0 150px !important;
+    width: 150px !important;
   }
 
   .m-modern-grid-layout::-webkit-scrollbar {

@@ -2278,7 +2278,7 @@ const renderHome = async () => {
           <h2 class="bestseller-title" style="font-family:var(--font-serif);">BESTSELLERS FOR YOU</h2>
           <a href="/shop" class="view-all" style="font-size:0.8rem; font-weight:700; color:var(--c-gold);">VIEW ALL</a>
         </div>
-        <div class="product-grid mt-md" id="best-sellers-list"><div class="skeleton-grid"></div></div>
+        <div class="product-grid m-modern-grid-layout mt-md" id="best-sellers-list"><div class="skeleton-grid"></div></div>
       </section>
     </div>
   `;
@@ -2304,8 +2304,13 @@ const renderHomeSections = async () => {
   };
 
   try {
-    const [bestData, newData, trendingData, menData, womenData, boysData, girlsData, electronicsData, footwearData, accessoriesData, stationeriesData] = await Promise.all([
-      productService.getProducts({ isBestSeller: true, limit: 4 }),
+    let bestData = await productService.getProducts({ isBestSeller: true, limit: 10 });
+    if (bestData.products.length < 10) {
+      const fallback = await productService.getProducts({ limit: 10 - bestData.products.length });
+      bestData.products = [...bestData.products, ...fallback.products].slice(0, 10);
+    }
+
+    const [newData, trendingData, menData, womenData, boysData, girlsData, electronicsData, footwearData, accessoriesData, stationeriesData] = await Promise.all([
       productService.getProducts({ limit: 4, sort: 'created_at:desc' }), // logic for new
       productService.getProducts({ isTrending: true, limit: 4 }),
       productService.getProducts({ category: 'Men', limit: 4 }),
