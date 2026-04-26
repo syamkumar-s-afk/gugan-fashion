@@ -123,6 +123,8 @@ const initCategoryMarquee = () => {
   let moved = false;
   let startX = 0;
   let startScrollLeft = 0;
+  let rafId = 0;
+  let currentScroll = 0;
 
   const getLoopWidth = () => firstSet.scrollWidth;
   const normalizeScroll = () => {
@@ -130,14 +132,37 @@ const initCategoryMarquee = () => {
     if (!loopWidth) return;
     if (marquee.scrollLeft >= loopWidth) marquee.scrollLeft -= loopWidth;
     if (marquee.scrollLeft < 0) marquee.scrollLeft += loopWidth;
+    currentScroll = marquee.scrollLeft;
   };
 
   marquee.scrollLeft = 0;
+  currentScroll = 0;
+
+  const stopAutoScroll = () => {
+    if (rafId) window.cancelAnimationFrame(rafId);
+    rafId = 0;
+  };
+
+  const startAutoScroll = () => {
+    stopAutoScroll();
+    const step = () => {
+      if (!isDragging) {
+        currentScroll += 0.55;
+        marquee.scrollLeft = currentScroll;
+        normalizeScroll();
+      }
+      rafId = window.requestAnimationFrame(step);
+    };
+    rafId = window.requestAnimationFrame(step);
+  };
+
   marquee.addEventListener('pointerdown', (event) => {
     isDragging = true;
     moved = false;
+    stopAutoScroll();
     startX = event.clientX;
     startScrollLeft = marquee.scrollLeft;
+    currentScroll = marquee.scrollLeft;
     marquee.classList.add('is-dragging');
     marquee.setPointerCapture(event.pointerId);
   });
@@ -146,7 +171,8 @@ const initCategoryMarquee = () => {
     if (!isDragging) return;
     const delta = event.clientX - startX;
     if (Math.abs(delta) > 6) moved = true;
-    marquee.scrollLeft = startScrollLeft - delta;
+    currentScroll = startScrollLeft - delta;
+    marquee.scrollLeft = currentScroll;
     normalizeScroll();
   });
 
@@ -156,10 +182,13 @@ const initCategoryMarquee = () => {
     marquee.classList.remove('is-dragging');
     if (marquee.hasPointerCapture(event.pointerId)) marquee.releasePointerCapture(event.pointerId);
     window.setTimeout(() => { moved = false; }, 0);
+    startAutoScroll();
   };
 
   marquee.addEventListener('pointerup', endDrag);
   marquee.addEventListener('pointercancel', endDrag);
+  marquee.addEventListener('mouseenter', stopAutoScroll);
+  marquee.addEventListener('mouseleave', startAutoScroll);
 
   track.querySelectorAll('.circle-item').forEach((item) => {
     item.addEventListener('click', (event) => {
@@ -171,8 +200,10 @@ const initCategoryMarquee = () => {
   });
 
   window.addEventListener('resize', normalizeScroll);
+  startAutoScroll();
   marquee.__cleanupMarquee = () => {
     window.removeEventListener('resize', normalizeScroll);
+    stopAutoScroll();
   };
 };
 
@@ -899,11 +930,22 @@ const renderNavbar = (user = store.getState().user) => {
   const closeDrawer = () => {
     document.getElementById('mobile-drawer').classList.remove('active');
     document.getElementById('mobile-overlay').classList.remove('active');
+    const menuBtn = document.getElementById('mobile-menu-btn');
+    menuBtn.classList.remove('active');
+    menuBtn.setAttribute('aria-label', 'Open menu');
+    menuBtn.setAttribute('aria-expanded', 'false');
   };
 
   document.getElementById('mobile-menu-btn').onclick = () => {
+    if (document.getElementById('mobile-drawer').classList.contains('active')) {
+      closeDrawer();
+      return;
+    }
     document.getElementById('mobile-drawer').classList.add('active');
     document.getElementById('mobile-overlay').classList.add('active');
+    document.getElementById('mobile-menu-btn').classList.add('active');
+    document.getElementById('mobile-menu-btn').setAttribute('aria-label', 'Close menu');
+    document.getElementById('mobile-menu-btn').setAttribute('aria-expanded', 'true');
   };
   document.getElementById('mobile-overlay').onclick = closeDrawer;
 
@@ -2256,42 +2298,91 @@ const renderHomeSections = async () => {
     if (containers.trending) {
        containers.trending.innerHTML = trendingData.products.length ? trendingData.products.map(p => ProductCard(p)).join('') : '<p>Checking what\'s popular...</p>';
     }
+    const renderSubcatCards = (items, sprite) => items.map((cat, index) => `
+      <article class="m-subcat-card" onclick="app.navigate('/shop?search=${encodeURIComponent(cat.name)}')">
+        <div
+          class="m-subcat-card-media"
+          role="img"
+          aria-label="${escapeAttr(cat.name)}"
+          style="--subcat-image: url('${sprite}'); --subcat-position: ${index * 33.3333}% 50%;"
+        ></div>
+        <div class="m-subcat-card-info">
+          <span style="font-size:1.1rem; font-weight:700;">${escapeHtml(cat.name)}</span>
+        </div>
+      </article>
+    `).join('');
+
     if (containers.men) {
       const mensSubcats = [
-        { name: 'Shirts', price: '549', image: 'https://images.unsplash.com/photo-1596755094514-f87e32f85e2c?q=80&w=600&auto=format&fit=crop' },
-        { name: 'T-Shirts', price: '349', image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=600&auto=format&fit=crop' },
-        { name: 'Jeans', price: '649', image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=600&auto=format&fit=crop' },
-        { name: 'Hoodies', price: '799', image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=600&auto=format&fit=crop' }
+        { name: 'Shirts' },
+        { name: 'T-Shirts' },
+        { name: 'Jeans' },
+        { name: 'Hoodies' }
       ];
-      containers.men.innerHTML = mensSubcats.map(cat => `
-        <article class="m-subcat-card" onclick="app.navigate('/shop?search=${encodeURIComponent(cat.name)}')">
-          <img src="${cat.image}" alt="${cat.name}" loading="lazy">
-          <div class="m-subcat-card-info">
-            <span style="font-size:1.1rem; font-weight:700;">${cat.name}</span>
-          </div>
-        </article>
-      `).join('');
+      containers.men.innerHTML = renderSubcatCards(mensSubcats, '/category-cards/men-categories.png');
     }
     if (containers.women) {
-      containers.women.innerHTML = womenData.products.length ? womenData.products.map(renderShowcaseProductCard).join('') : '<p class="showcase-empty">More women styles coming soon.</p>';
+      const womensSubcats = [
+        { name: 'Sarees' },
+        { name: 'Kurtas' },
+        { name: 'Leggings' },
+        { name: 'Dresses' }
+      ];
+      containers.women.innerHTML = renderSubcatCards(womensSubcats, '/category-cards/women-categories.png');
     }
     if (containers.boys) {
-      containers.boys.innerHTML = boysData.products.length ? boysData.products.map(renderShowcaseProductCard).join('') : '<p class="showcase-empty">More boys styles coming soon.</p>';
+      const boysSubcats = [
+        { name: 'Shirts' },
+        { name: 'Jackets' },
+        { name: 'Hoodies' },
+        { name: 'Joggers' }
+      ];
+      containers.boys.innerHTML = renderSubcatCards(boysSubcats, '/category-cards/boys-categories.png');
     }
     if (containers.girls) {
-      containers.girls.innerHTML = girlsData.products.length ? girlsData.products.map(renderShowcaseProductCard).join('') : '<p class="showcase-empty">More girls styles coming soon.</p>';
+      const girlsSubcats = [
+        { name: 'Dresses' },
+        { name: 'Denim' },
+        { name: 'Tunics' },
+        { name: 'Sweatshirts' }
+      ];
+      containers.girls.innerHTML = renderSubcatCards(girlsSubcats, '/category-cards/girls-categories.png');
     }
     if (containers.electronics) {
-      containers.electronics.innerHTML = electronicsData.products.length ? electronicsData.products.map(renderShowcaseProductCard).join('') : '<p class="showcase-empty">More electronics coming soon.</p>';
+      const electronicsSubcats = [
+        { name: 'Earbuds' },
+        { name: 'Smart Watches' },
+        { name: 'Speakers' },
+        { name: 'Chargers' }
+      ];
+      containers.electronics.innerHTML = renderSubcatCards(electronicsSubcats, '/category-cards/electronics-categories.png');
     }
     if (containers.footwear) {
-      containers.footwear.innerHTML = footwearData.products.length ? footwearData.products.map(renderShowcaseProductCard).join('') : '<p class="showcase-empty">More footwear coming soon.</p>';
+      const footwearSubcats = [
+        { name: 'Sneakers' },
+        { name: 'Loafers' },
+        { name: 'Sandals' },
+        { name: 'Trainers' }
+      ];
+      containers.footwear.innerHTML = renderSubcatCards(footwearSubcats, '/category-cards/footwear-categories.png');
     }
     if (containers.accessories) {
-      containers.accessories.innerHTML = accessoriesData.products.length ? accessoriesData.products.map(renderShowcaseProductCard).join('') : '<p class="showcase-empty">More accessories coming soon.</p>';
+      const accessoriesSubcats = [
+        { name: 'Handbags' },
+        { name: 'Watches' },
+        { name: 'Sunglasses' },
+        { name: 'Backpacks' }
+      ];
+      containers.accessories.innerHTML = renderSubcatCards(accessoriesSubcats, '/category-cards/accessories-categories.png');
     }
     if (containers.stationeries) {
-      containers.stationeries.innerHTML = stationeriesData.products.length ? stationeriesData.products.map(renderShowcaseProductCard).join('') : '<p class="showcase-empty">More stationery coming soon.</p>';
+      const stationeriesSubcats = [
+        { name: 'Notebooks' },
+        { name: 'Brush Pens' },
+        { name: 'Planners' },
+        { name: 'School Kits' }
+      ];
+      containers.stationeries.innerHTML = renderSubcatCards(stationeriesSubcats, '/category-cards/stationeries-categories.png');
     }
 
     // Attach click handlers to all new cards
