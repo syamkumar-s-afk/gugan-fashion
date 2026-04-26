@@ -4415,13 +4415,6 @@ body.admin-mode .btn-icon {
   padding: 0 !important;
 }
 
-.m-modern-grid-layout.cols-4 {
-  grid-template-columns: repeat(4, 1fr) !important;
-}
-
-.m-modern-grid-layout.cols-3 {
-  grid-template-columns: repeat(3, 1fr) !important;
-}
 
 .m-modern-cat-card {
   display: flex;

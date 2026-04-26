@@ -2166,7 +2166,7 @@ const renderHome = async () => {
                 </div>
                 <button class="category-showcase-link" onclick="app.navigate('${CATEGORY_LINKS[category]}')">VIEW ALL</button>
               </div>
-              <div class="category-showcase-rail ${['Electronics', 'Accessories', 'Stationeries', 'Footwear'].includes(category) ? 'm-modern-grid-layout' : ''} ${['Accessories', 'Stationeries'].includes(category) ? 'cols-4' : ''}" id="showcase-${category.toLowerCase()}">
+              <div class="category-showcase-rail ${['Electronics', 'Accessories', 'Stationeries', 'Footwear'].includes(category) ? 'm-modern-grid-layout' : ''}" id="showcase-${category.toLowerCase()}">
                 <div class="showcase-loading">Loading ${escapeHtml(category)} styles...</div>
               </div>
             </div>
@@ -2466,12 +2466,16 @@ const renderHomeSections = async () => {
         { name: 'Handbags' },
         { name: 'Watches' },
         { name: 'Sunglasses' },
-        { name: 'Backpacks' }
+        { name: 'Backpacks' },
+        { name: 'Belts', image: 'https://images.unsplash.com/photo-1624222247344-550fb60583dc?q=80&w=600&auto=format&fit=crop' }
       ];
       containers.accessories.innerHTML = accessoriesSubcats.map((cat, index) => `
         <div class="m-modern-cat-card" onclick="app.navigate('/shop?search=${encodeURIComponent(cat.name)}')">
           <div class="m-modern-cat-card-img">
-            <div class="m-subcat-card-media" style="--subcat-image: url('/category-cards/accessories-categories.png'); --subcat-size: 400% 100%; --subcat-position: ${index * 33.333333}% 50%;"></div>
+            ${cat.image 
+              ? `<img src="${cat.image}" alt="${cat.name}">`
+              : `<div class="m-subcat-card-media" style="--subcat-image: url('/category-cards/accessories-categories.png'); --subcat-size: 400% 100%; --subcat-position: ${index * 33.333333}% 50%;"></div>`
+            }
           </div>
           <div class="m-modern-cat-card-label">${escapeHtml(cat.name)}</div>
         </div>
@@ -2482,12 +2486,16 @@ const renderHomeSections = async () => {
         { name: 'Notebooks' },
         { name: 'Brush Pens' },
         { name: 'Planners' },
-        { name: 'School Kits' }
+        { name: 'School Kits' },
+        { name: 'Art Supplies', image: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?q=80&w=600&auto=format&fit=crop' }
       ];
       containers.stationeries.innerHTML = stationeriesSubcats.map((cat, index) => `
         <div class="m-modern-cat-card" onclick="app.navigate('/shop?search=${encodeURIComponent(cat.name)}')">
           <div class="m-modern-cat-card-img">
-            <div class="m-subcat-card-media" style="--subcat-image: url('/category-cards/stationeries-categories.png'); --subcat-size: 500% 100%; --subcat-position: ${3.125 + index * 31.25}% 50%;"></div>
+            ${cat.image 
+              ? `<img src="${cat.image}" alt="${cat.name}">`
+              : `<div class="m-subcat-card-media" style="--subcat-image: url('/category-cards/stationeries-categories.png'); --subcat-size: 500% 100%; --subcat-position: ${3.125 + index * 31.25}% 50%;"></div>`
+            }
           </div>
           <div class="m-modern-cat-card-label">${escapeHtml(cat.name)}</div>
         </div>
