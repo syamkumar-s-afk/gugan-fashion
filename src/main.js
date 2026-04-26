@@ -68,11 +68,11 @@ const DEFAULT_HOME_VIDEO_URL = 'https://cdn.pixabay.com/video/2024/02/16/200729-
 const FALLBACK_HOME_VIDEO_URL = 'https://samplelib.com/lib/preview/mp4/sample-5s.mp4';
 const DEFAULT_HOME_VIDEO_POSTER = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=1600&auto=format&fit=crop';
 const TESTIMONIALS = [
-  { name: 'Aarav S.', text: 'The fit and finish felt premium right away. Delivery was quick and the styling looked exactly like the photos.' },
-  { name: 'Nithya R.', text: 'Loved the curation. I found outfits for myself and my kids in one place without scrolling through clutter.' },
-  { name: 'Sana M.', text: 'The accessories and footwear picks are surprisingly strong. The whole store feels more polished now.' },
-  { name: 'Rahul K.', text: 'Checkout was easy and the products looked better in person. I would definitely order again.' },
-  { name: 'Divya P.', text: 'The collections are clear, the pricing feels fair, and the homepage now makes browsing much faster.' },
+  { name: 'Syam Kumar', role: 'Fashion Blogger', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=faces', text: "The collection at Gugan Fashions is truly unique. I love how they blend traditional aesthetics with modern luxury. The quality of the fabric is exceptional and definitely worth every rupee." },
+  { name: 'shivaguru', role: 'Verified Buyer', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=faces', text: "I ordered a saree and a few kurtis for a family function. The delivery was incredibly fast, and the packaging felt so premium. The fit was perfect, and I received so many compliments!" },
+  { name: 'tilak', role: 'Creative Director', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=faces', text: "As someone who appreciates fine design, I'm impressed by the curation here. The website is smooth, and the product photography is very accurate. It's my new go-to for luxury essentials." },
+  { name: 'Meenakshi S.', role: 'Verified Buyer', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=faces', text: "Gugan Fashions has the best selection of accessories. I found the perfect pair of earrings to match my outfit. The customer support team was also very helpful with my queries." },
+  { name: 'Vignesh P.', role: 'Tech Lead', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=faces', text: "The shopping experience is top-notch. I love the minimalist UI and how easy it is to find what I'm looking for. The checkout process is seamless, and the products are of great quality." },
 ];
 
 const getDefaultCategoryItems = () => CATEGORY_DEFINITIONS.map((category) => ({
@@ -344,38 +344,7 @@ const renderShowcaseProductCard = (product = {}) => {
 };
 
 const initTestimonialsMarquee = () => {
-  const marquee = document.querySelector('.testimonials-marquee');
-  const track = marquee?.querySelector('.testimonials-track');
-  const firstSet = track?.querySelector('.testimonials-group');
-  if (!marquee || !track || !firstSet || marquee.dataset.ready === 'true') return;
-
-  marquee.dataset.ready = 'true';
-  let rafId = 0;
-
-  const normalizeScroll = () => {
-    const loopWidth = firstSet.scrollWidth;
-    if (!loopWidth) return;
-    if (marquee.scrollLeft >= loopWidth) marquee.scrollLeft -= loopWidth;
-  };
-
-  const step = () => {
-    marquee.scrollLeft += 0.45;
-    normalizeScroll();
-    rafId = window.requestAnimationFrame(step);
-  };
-
-  marquee.scrollLeft = 0;
-  rafId = window.requestAnimationFrame(step);
-
-  marquee.addEventListener('mouseenter', () => window.cancelAnimationFrame(rafId));
-  marquee.addEventListener('mouseleave', () => {
-    window.cancelAnimationFrame(rafId);
-    rafId = window.requestAnimationFrame(step);
-  });
-
-  marquee.__cleanupTestimonials = () => {
-    if (rafId) window.cancelAnimationFrame(rafId);
-  };
+  // Switched to pure CSS animation for buttery smooth and reliable looping
 };
 
 const initHomeVideo = () => {
@@ -876,13 +845,13 @@ const renderFooter = () => {
             <li><a href="#">Returns</a></li>
             <li><a href="#">FAQs</a></li>
           </ul>
-        </div>
-        <div class="footer-col">
-          <h4>LEGAL</h4>
-          <ul>
-            <li><a href="#">Privacy Policy</a></li>
-            <li><a href="#">Terms of Service</a></li>
-          </ul>
+          <div style="margin-top: 24px;">
+            <h4>LEGAL</h4>
+            <ul>
+              <li><a href="#">Privacy Policy</a></li>
+              <li><a href="#">Terms of Service</a></li>
+            </ul>
+          </div>
         </div>
       </div>
       <div class="footer-bottom">
@@ -2157,20 +2126,40 @@ const renderHome = async () => {
 
       <section class="category-showcase-section">
         <div class="container showcase-container">
-          ${DEFAULT_SHOWCASE_CATEGORIES.map((category) => `
-            <div class="category-showcase-block">
+          ${DEFAULT_SHOWCASE_CATEGORIES.map((category) => {
+      const specialCategories = ['Electronics', 'Accessories', 'Stationeries', 'Footwear'];
+      const isSpecial = specialCategories.includes(category);
+      
+      // Map display names to singular for special titles
+      const displayNames = {
+        'Electronics': 'ELECTRONIC',
+        'Accessories': 'ACCESSORY',
+        'Stationeries': 'STATIONERY',
+        'Footwear': 'FOOTWEAR'
+      };
+
+      return `
+            <div class="category-showcase-block ${isSpecial ? 'electronics-special-block' : ''}">
               <div class="category-showcase-title-row">
                 <div>
-                  <span class="category-showcase-kicker">${escapeHtml(category.toUpperCase())}</span>
-                  <h3>${escapeHtml(category)} Collection</h3>
+                  ${isSpecial
+          ? `<h2 class="special-showcase-title">${displayNames[category] || category.toUpperCase()}</h2>`
+          : `
+                      <span class="category-showcase-kicker">${escapeHtml(category.toUpperCase())}</span>
+                      <h3>${escapeHtml(category)} Collection</h3>
+                    `
+        }
                 </div>
-                <button class="category-showcase-link" onclick="app.navigate('${CATEGORY_LINKS[category]}')">VIEW ALL</button>
+                ${isSpecial ? '' : `<button class="category-showcase-link" onclick="app.navigate('${CATEGORY_LINKS[category]}')">VIEW ALL</button>`}
               </div>
-              <div class="category-showcase-rail ${['Electronics', 'Accessories', 'Stationeries', 'Footwear'].includes(category) ? 'm-modern-grid-layout' : ''}" id="showcase-${category.toLowerCase()}">
+              ${isSpecial ? '<hr class="special-divider">' : ''}
+              <div class="category-showcase-rail ${specialCategories.includes(category) ? 'm-modern-grid-layout' : ''}" id="showcase-${category.toLowerCase()}">
                 <div class="showcase-loading">Loading ${escapeHtml(category)} styles...</div>
               </div>
+              ${isSpecial ? `<button class="special-view-more-btn" onclick="app.navigate('${CATEGORY_LINKS[category]}')">VIEW MORE PRODUCTS</button>` : ''}
             </div>
-          `).join('')}
+          `;
+    }).join('')}
         </div>
       </section>
 
@@ -2245,69 +2234,14 @@ const renderHome = async () => {
         </div>
       </section>
 
-      <section class="m-pocket-section container">
-        <div class="cat-header">
-          <h2>Pocket Friendly Bargain!</h2>
-          <p>WHERE STYLE MATCHES SAVINGS</p>
-        </div>
-        <div class="m-price-rail">
-          <button class="m-price-card" onclick="app.navigate('/shop?search=Tshirt')">
-            <img src="https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?q=80&w=700&auto=format&fit=crop" alt="Tshirts">
-            <div><small>Under</small><strong>Rs 349</strong><span>Tshirts</span></div>
-          </button>
-          <button class="m-price-card" onclick="app.navigate('/shop?search=Shirt')">
-            <img src="https://images.unsplash.com/photo-1556905055-8f358a7a47b2?q=80&w=700&auto=format&fit=crop" alt="Shirts">
-            <div><small>Under</small><strong>Rs 549</strong><span>Shirts</span></div>
-          </button>
-          <button class="m-price-card" onclick="app.navigate('/shop?search=Dress')">
-            <img src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=700&auto=format&fit=crop" alt="Dresses">
-            <div><small>Under</small><strong>Rs 699</strong><span>Dresses</span></div>
-          </button>
-          <button class="m-price-card" onclick="app.navigate('/shop?search=Jeans')">
-            <img src="https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?q=80&w=700&auto=format&fit=crop" alt="Jeans">
-            <div><small>Under</small><strong>Rs 649</strong><span>Jeans</span></div>
-          </button>
-        </div>
-      </section>
 
-      <section class="m-bestseller-categories container">
-        <div class="cat-header">
-          <h2>Bestseller Categories</h2>
-          <p>TOP PICKS, JUST FOR YOU!</p>
-        </div>
-        <div class="m-cat-large-row">
-          <button class="m-cat-large-card" onclick="app.navigate('/shop?search=Saree')">
-            <h3>Sarees</h3>
-            <img src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=700&auto=format&fit=crop" alt="Sarees">
-            <div class="m-cat-large-meta">
-              <strong>UNDER RS 1099</strong>
-              <div>KALINI | MIFERA | & MORE</div>
-            </div>
-          </button>
-          <button class="m-cat-large-card" onclick="app.navigate('/shop?search=Kurti')">
-            <h3>Kurtis</h3>
-            <img src="https://images.unsplash.com/photo-1612336307429-8a898d10e223?q=80&w=700&auto=format&fit=crop" alt="Kurtis">
-            <div class="m-cat-large-meta">
-              <strong>UNDER RS 899</strong>
-              <div>KALINI | ANAYNA | & MORE</div>
-            </div>
-          </button>
-        </div>
-      </section>
-
-      <section class="home-products-section py-lg container">
-        <div class="section-header">
-          <h2 style="font-family:var(--font-serif); font-size:2rem;">BESTSELLERS FOR YOU</h2>
-          <a href="/shop" class="view-all" style="font-size:0.8rem; font-weight:700; color:var(--c-gold);">VIEW ALL</a>
-        </div>
-        <div class="product-grid mt-md" id="best-sellers-list"><div class="skeleton-grid"></div></div>
-      </section>
 
       <section class="testimonials-section">
         <div class="container">
-          <div class="section-header category-showcase-header">
-            <h2 style="font-family:var(--font-serif); font-size:2rem;">What Customers Say</h2>
-            <p>Real shopper feedback moving across the storefront</p>
+          <div class="t-section-intro">
+           
+            <h2>Draw your own conclusions</h2>
+            
           </div>
         </div>
         <div class="testimonials-marquee">
@@ -2315,15 +2249,36 @@ const renderHome = async () => {
             ${[0, 1].map(() => `
               <div class="testimonials-group">
                 ${TESTIMONIALS.map((item) => `
-                  <article class="testimonial-card">
-                    <p>${escapeHtml(item.text)}</p>
-                    <strong>${escapeHtml(item.name)}</strong>
+                  <article class="testimonial-card modern-testimonial">
+                    <div class="t-header">
+                      <img src="${item.avatar}" alt="${item.name}" class="t-avatar" />
+                      <div class="t-meta">
+                        <strong>${escapeHtml(item.name)}</strong>
+                        <span>${escapeHtml(item.role)}</span>
+                        <div class="t-stars">
+                          ${[1, 2, 3, 4, 5].map(() => '&#9733;').join('')}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="t-body">
+                      <div class="t-quote-mark">&ldquo;</div>
+                      <p>${escapeHtml(item.text)}</p>
+                      <a href="#" class="t-read-more" onclick="event.preventDefault()">READ MORE</a>
+                    </div>
                   </article>
                 `).join('')}
               </div>
             `).join('')}
           </div>
         </div>
+      </section>
+
+      <section class="home-products-section py-lg container">
+        <div class="section-header">
+          <h2 class="bestseller-title" style="font-family:var(--font-serif);">BESTSELLERS FOR YOU</h2>
+          <a href="/shop" class="view-all" style="font-size:0.8rem; font-weight:700; color:var(--c-gold);">VIEW ALL</a>
+        </div>
+        <div class="product-grid mt-md" id="best-sellers-list"><div class="skeleton-grid"></div></div>
       </section>
     </div>
   `;
@@ -2452,10 +2407,10 @@ const renderHomeSections = async () => {
       containers.footwear.innerHTML = footwearSubcats.map((cat, index) => `
         <div class="m-modern-cat-card" onclick="app.navigate('/shop?search=${encodeURIComponent(cat.name)}')">
           <div class="m-modern-cat-card-img">
-            ${cat.image 
-              ? `<img src="${cat.image}" alt="${cat.name}">`
-              : `<div class="m-subcat-card-media" style="--subcat-image: url('/category-cards/footwear-categories.png'); --subcat-size: 400% 100%; --subcat-position: ${index * 33.333333}% 50%;"></div>`
-            }
+            ${cat.image
+          ? `<img src="${cat.image}" alt="${cat.name}">`
+          : `<div class="m-subcat-card-media" style="--subcat-image: url('/category-cards/footwear-categories.png'); --subcat-size: 400% 100%; --subcat-position: ${index * 33.333333}% 50%;"></div>`
+        }
           </div>
           <div class="m-modern-cat-card-label">${escapeHtml(cat.name)}</div>
         </div>
@@ -2472,10 +2427,10 @@ const renderHomeSections = async () => {
       containers.accessories.innerHTML = accessoriesSubcats.map((cat, index) => `
         <div class="m-modern-cat-card" onclick="app.navigate('/shop?search=${encodeURIComponent(cat.name)}')">
           <div class="m-modern-cat-card-img">
-            ${cat.image 
-              ? `<img src="${cat.image}" alt="${cat.name}">`
-              : `<div class="m-subcat-card-media" style="--subcat-image: url('/category-cards/accessories-categories.png'); --subcat-size: 400% 100%; --subcat-position: ${index * 33.333333}% 50%;"></div>`
-            }
+            ${cat.image
+          ? `<img src="${cat.image}" alt="${cat.name}">`
+          : `<div class="m-subcat-card-media" style="--subcat-image: url('/category-cards/accessories-categories.png'); --subcat-size: 400% 100%; --subcat-position: ${index * 33.333333}% 50%;"></div>`
+        }
           </div>
           <div class="m-modern-cat-card-label">${escapeHtml(cat.name)}</div>
         </div>
@@ -2492,10 +2447,10 @@ const renderHomeSections = async () => {
       containers.stationeries.innerHTML = stationeriesSubcats.map((cat, index) => `
         <div class="m-modern-cat-card" onclick="app.navigate('/shop?search=${encodeURIComponent(cat.name)}')">
           <div class="m-modern-cat-card-img">
-            ${cat.image 
-              ? `<img src="${cat.image}" alt="${cat.name}">`
-              : `<div class="m-subcat-card-media" style="--subcat-image: url('/category-cards/stationeries-categories.png'); --subcat-size: 500% 100%; --subcat-position: ${3.125 + index * 31.25}% 50%;"></div>`
-            }
+            ${cat.image
+          ? `<img src="${cat.image}" alt="${cat.name}">`
+          : `<div class="m-subcat-card-media" style="--subcat-image: url('/category-cards/stationeries-categories.png'); --subcat-size: 500% 100%; --subcat-position: ${3.125 + index * 31.25}% 50%;"></div>`
+        }
           </div>
           <div class="m-modern-cat-card-label">${escapeHtml(cat.name)}</div>
         </div>
