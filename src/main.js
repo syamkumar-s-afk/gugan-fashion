@@ -815,47 +815,92 @@ const renderFooter = () => {
   if (!footer) return;
   footer.innerHTML = `
     <div class="container">
-      <div class="footer-cols">
-        <div class="footer-brand">
-          <img src="${logoUrl}" alt="GUGAN" style="height: 40px; width: auto; margin-bottom: 20px;">
-          <p>Redefining modern fashion with minimalist luxury since 2024.</p>
-          <div class="social-links">
-            <a href="#" aria-label="Facebook">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
-            </a>
-            <a href="#" aria-label="Instagram">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"></line></svg>
-            </a>
-            <a href="#" aria-label="Twitter">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path></svg>
-            </a>
-          </div>
-        </div>
-        <div class="footer-col">
-          <h4>SHOP</h4>
+      <div class="footer-detailed-cols">
+        <div class="footer-col-links">
+          <h4>ONLINE SHOPPING</h4>
           <ul>
             ${CATEGORY_NAMES.map((category) => `<li><a href="${CATEGORY_LINKS[category]}">${escapeHtml(category)}</a></li>`).join('')}
           </ul>
         </div>
-        <div class="footer-col">
-          <h4>SUPPORT</h4>
+        
+        <div class="footer-col-links">
+          <h4>USEFUL LINKS</h4>
+          <ul>
+            <li><a href="#">Blog</a></li>
+            <li><a href="#">Careers</a></li>
+            <li><a href="#">Site Map</a></li>
+            <li><a href="#">Corporate Information</a></li>
+            <li><a href="#">Whitehat</a></li>
+            <li><a href="#">Cleartrip</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col-links">
+          <h4>CUSTOMER POLICIES</h4>
           <ul>
             <li><a href="#">Contact Us</a></li>
+            <li><a href="#">FAQ</a></li>
+            <li><a href="#">T&C</a></li>
+            <li><a href="#">Terms Of Use</a></li>
+            <li><a href="#">Track Orders</a></li>
             <li><a href="#">Shipping</a></li>
+            <li><a href="#">Cancellation</a></li>
             <li><a href="#">Returns</a></li>
-            <li><a href="#">FAQs</a></li>
+            <li><a href="#">Privacy Policy</a></li>
+            <li><a href="#">Grievance Officer</a></li>
           </ul>
-          <div style="margin-top: 24px;">
-            <h4>LEGAL</h4>
-            <ul>
-              <li><a href="#">Privacy Policy</a></li>
-              <li><a href="#">Terms of Service</a></li>
-            </ul>
+        </div>
+
+        <div class="footer-col-app">
+          <h4 class="keep-in-touch-h4">KEEP IN TOUCH</h4>
+          <div class="social-links">
+            <a href="#" aria-label="Facebook">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
+            </a>
+            <a href="#" aria-label="Twitter">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path></svg>
+            </a>
+            <a href="#" aria-label="Youtube">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33 2.78 2.78 0 0 0 1.94 2c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.33 29 29 0 0 0-.46-5.33z"></path><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon></svg>
+            </a>
+            <a href="#" aria-label="Instagram">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"></line></svg>
+            </a>
+          </div>
+        </div>
+        
+        <div class="footer-col-trust">
+          <div class="trust-item">
+            <img src="https://constant.myntassets.com/web/assets/img/6c3306ca-1efa-4a27-8769-3b69d16948741574602902452-original.png" alt="100% Original">
+            <p><strong>100% ORIGINAL</strong> guarantee for all products at gugan.com</p>
+          </div>
+          <div class="trust-item">
+            <img src="https://constant.myntassets.com/web/assets/img/ef05d6cb-fc12-4ee0-9f13-611b6ae6af411574602902424-return.png" alt="Return within 14 days">
+            <p><strong>Return within 14days</strong> of receiving your order</p>
           </div>
         </div>
       </div>
-      <div class="footer-bottom">
-        &copy; 2026 GUGAN FASHIONS. ALL RIGHTS RESERVED.
+      
+      <div class="footer-popular-searches">
+        <h4>POPULAR SEARCHES</h4>
+        <p>
+          <a href="#">Makeup</a> | <a href="#">Dresses For Girls</a> | <a href="#">T-Shirts</a> | <a href="#">Sandals</a> | <a href="#">Headphones</a> | <a href="#">Babydolls</a> | <a href="#">Blazers For Men</a> | <a href="#">Handbags</a> | <a href="#">Ladies Watches</a> | <a href="#">Bags</a> | <a href="#">Sport Shoes</a> | <a href="#">Reebok Shoes</a> | <a href="#">Puma Shoes</a> | <a href="#">Boxers</a> | <a href="#">Wallets</a> | <a href="#">Tops</a> | <a href="#">Earrings</a> | <a href="#">Fastrack Watches</a> | <a href="#">Kurtis</a> | <a href="#">Nike</a> | <a href="#">Smart Watches</a> | <a href="#">Titan Watches</a> | <a href="#">Designer Blouse</a> | <a href="#">Gowns</a> | <a href="#">Rings</a> | <a href="#">Cricket Shoes</a> | <a href="#">Forever 21</a> | <a href="#">Eye Makeup</a> | <a href="#">Photo Frames</a> | <a href="#">Punjabi Suits</a> | <a href="#">Bikini</a> | <a href="#">Myntra Fashion Show</a> | <a href="#">Lipstick</a> | <a href="#">Saree</a> | <a href="#">Watches</a> | <a href="#">Dresses</a> | <a href="#">Lehenga</a> | <a href="#">Nike Shoes</a> | <a href="#">Goggles</a> | <a href="#">Bras</a> | <a href="#">Suit</a> | <a href="#">Chinos</a> | <a href="#">Shoes</a> | <a href="#">Adidas Shoes</a> | <a href="#">Woodland Shoes</a> | <a href="#">Jewellery</a> | <a href="#">Designers Sarees</a>
+        </p>
+      </div>
+
+      <div class="footer-seo-block">
+        <p><strong>GUGAN FASHIONS: THE ULTIMATE FASHION DESTINATION</strong></p>
+        <p>Gugan Fashions is the ultimate destination for fashion and lifestyle, being host to a wide array of merchandise including clothing, footwear, accessories, jewelry, personal care products and more. It is time to redefine your style statement with our treasure-trove of trendy items. Our online store brings you the latest in designer products straight out of fashion houses. You can shop online at Gugan from the comfort of your home and get your favourites delivered right to your doorstep.</p>
+        <p><strong>HISTORY OF GUGAN</strong></p>
+        <p>Becoming India's no. 1 fashion destination is not an easy feat. Sincere efforts, digital enhancements and a team of dedicated personnel with an equally loyal customer base have made Gugan the premium online shopping destination it is today. The original platform began as a luxury boutique, and today it is present across various categories including everyday wear, ethnic collections, and premium electronics.</p>
+        <p><strong>SHOP ONLINE AT GUGAN WITH COMPLETE CONVENIENCE</strong></p>
+        <p>Another reason why Gugan is the best of all online stores is the complete convenience that it offers. You can view your favourite brands with price options for different products in one place. A user-friendly interface will guide you through your selection process. Comprehensive size charts, product information and high-resolution images help you make the best buying decisions. You also have the freedom to choose your payment options, be it card or cash-on-delivery. The 14-day returns policy gives you more power as a buyer. Additionally, the try-and-buy option for select products takes customer-friendliness to the next level.</p>
+      </div>
+      
+      <div class="footer-bottom-bar">
+        <div>In case of any concern, <strong class="contact-link">Contact Us</strong></div>
+        <div>&copy; 2026 www.gugan.com. All rights reserved.</div>
+        <div>A Gugan Group Company</div>
       </div>
     </div>
   `;
