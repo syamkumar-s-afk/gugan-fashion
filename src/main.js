@@ -123,8 +123,6 @@ const initCategoryMarquee = () => {
   let moved = false;
   let startX = 0;
   let startScrollLeft = 0;
-  let rafId = 0;
-  let autoScrollPaused = false;
 
   const getLoopWidth = () => firstSet.scrollWidth;
   const normalizeScroll = () => {
@@ -134,26 +132,10 @@ const initCategoryMarquee = () => {
     if (marquee.scrollLeft < 0) marquee.scrollLeft += loopWidth;
   };
 
-  const tick = () => {
-    if (!autoScrollPaused) {
-      marquee.scrollLeft += 0.55;
-      normalizeScroll();
-    }
-    rafId = window.requestAnimationFrame(tick);
-  };
-
-  const pause = () => { autoScrollPaused = true; };
-  const resume = () => { if (!isDragging) autoScrollPaused = false; };
-
-  marquee.scrollLeft = getLoopWidth() / 2;
-  rafId = window.requestAnimationFrame(tick);
-
-  marquee.addEventListener('mouseenter', pause);
-  marquee.addEventListener('mouseleave', resume);
+  marquee.scrollLeft = 0;
   marquee.addEventListener('pointerdown', (event) => {
     isDragging = true;
     moved = false;
-    autoScrollPaused = true;
     startX = event.clientX;
     startScrollLeft = marquee.scrollLeft;
     marquee.classList.add('is-dragging');
@@ -174,7 +156,6 @@ const initCategoryMarquee = () => {
     marquee.classList.remove('is-dragging');
     if (marquee.hasPointerCapture(event.pointerId)) marquee.releasePointerCapture(event.pointerId);
     window.setTimeout(() => { moved = false; }, 0);
-    resume();
   };
 
   marquee.addEventListener('pointerup', endDrag);
@@ -191,7 +172,7 @@ const initCategoryMarquee = () => {
 
   window.addEventListener('resize', normalizeScroll);
   marquee.__cleanupMarquee = () => {
-    if (rafId) window.cancelAnimationFrame(rafId);
+    window.removeEventListener('resize', normalizeScroll);
   };
 };
 
@@ -867,9 +848,33 @@ const renderNavbar = (user = store.getState().user) => {
         </div>
         <div class="action-links">
           ${isAdmin ? '<a href="/admin" id="admin-link">CMS</a>' : ''}
-          <a href="/wishlist" id="wishlist-link">WISHLIST</a>
-          <a href="#" id="profile-action">${user ? (user.profile?.full_name?.split(' ')[0] || 'ACCOUNT') : 'LOGIN'}</a>
-          <a href="/cart" id="cart-link">CART</a>
+          <a href="/wishlist" id="wishlist-link" class="header-action-link">
+            <span class="header-action-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M12 21.35 10.55 20C5.4 15.24 2 12.09 2 8.25A5.25 5.25 0 0 1 7.25 3C9 3 10.68 3.81 11.75 5.09 12.82 3.81 14.5 3 16.25 3A5.25 5.25 0 0 1 21.5 8.25c0 3.84-3.4 6.99-8.55 11.76L12 21.35Z" fill="currentColor"/>
+              </svg>
+            </span>
+            <span class="header-action-label-desktop">WISHLIST</span>
+            <span class="header-action-label-mobile">Wishlist</span>
+          </a>
+          <a href="#" id="profile-action" class="header-action-link">
+            <span class="header-action-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M12 12a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Zm0 2.25c-4.2 0-7.5 2.87-7.5 6.25 0 .41.34.75.75.75h13.5a.75.75 0 0 0 .75-.75c0-3.38-3.3-6.25-7.5-6.25Z" fill="currentColor"/>
+              </svg>
+            </span>
+            <span class="header-action-label-desktop">${user ? (user.profile?.full_name?.split(' ')[0] || 'ACCOUNT') : 'LOGIN'}</span>
+            <span class="header-action-label-mobile">Profile</span>
+          </a>
+          <a href="/cart" id="cart-link" class="header-action-link">
+            <span class="header-action-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M3.75 4.5h1.57c.42 0 .78.29.88.69l.34 1.56h13.71a.75.75 0 0 1 .72.96l-1.63 5.75a1.5 1.5 0 0 1-1.45 1.09H9.17a1.5 1.5 0 0 1-1.46-1.16L6.04 5.99H3.75a.75.75 0 0 1 0-1.5Zm5.8 11.75a1.65 1.65 0 1 0 0 3.3 1.65 1.65 0 0 0 0-3.3Zm8.2 0a1.65 1.65 0 1 0 0 3.3 1.65 1.65 0 0 0 0-3.3Z" fill="currentColor"/>
+              </svg>
+            </span>
+            <span class="header-action-label-desktop">CART</span>
+            <span class="header-action-label-mobile">Cart</span>
+          </a>
         </div>
       </div>
     </nav>
@@ -2042,9 +2047,9 @@ const renderHome = async () => {
       </section>
 
       <section class="categories-section">
-        <div class="cat-header container" style="margin-bottom: 20px;">
-          <h2>Shop by Category</h2>
-          <p>CURATED COLLECTIONS FOR EVERY OCCASION</p>
+        <div class="cat-header container" style="margin-bottom: 8px;">
+          <h2>Gugan Collection</h2>
+          <button class="cat-header-side" onclick="app.navigate('/shop')">View All</button>
         </div>
         <div class="marquee-container">
           <div class="circle-track">
@@ -2252,7 +2257,20 @@ const renderHomeSections = async () => {
        containers.trending.innerHTML = trendingData.products.length ? trendingData.products.map(p => ProductCard(p)).join('') : '<p>Checking what\'s popular...</p>';
     }
     if (containers.men) {
-      containers.men.innerHTML = menData.products.length ? menData.products.map(renderShowcaseProductCard).join('') : '<p class="showcase-empty">More men styles coming soon.</p>';
+      const mensSubcats = [
+        { name: 'Shirts', price: '549', image: 'https://images.unsplash.com/photo-1596755094514-f87e32f85e2c?q=80&w=600&auto=format&fit=crop' },
+        { name: 'T-Shirts', price: '349', image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=600&auto=format&fit=crop' },
+        { name: 'Jeans', price: '649', image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=600&auto=format&fit=crop' },
+        { name: 'Hoodies', price: '799', image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=600&auto=format&fit=crop' }
+      ];
+      containers.men.innerHTML = mensSubcats.map(cat => `
+        <article class="m-subcat-card" onclick="app.navigate('/shop?search=${encodeURIComponent(cat.name)}')">
+          <img src="${cat.image}" alt="${cat.name}" loading="lazy">
+          <div class="m-subcat-card-info">
+            <span style="font-size:1.1rem; font-weight:700;">${cat.name}</span>
+          </div>
+        </article>
+      `).join('');
     }
     if (containers.women) {
       containers.women.innerHTML = womenData.products.length ? womenData.products.map(renderShowcaseProductCard).join('') : '<p class="showcase-empty">More women styles coming soon.</p>';
