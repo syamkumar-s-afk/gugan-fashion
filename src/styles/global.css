@@ -284,9 +284,9 @@ img {
 }
 
 /* Sections */
-.py-xl { padding: 4rem 0; }
-.py-lg { padding: 2rem 0; }
-.mt-md { margin-top: 1.5rem; }
+.py-xl { padding: 2.5rem 0; }
+.py-lg { padding: 1.25rem 0; }
+.mt-md { margin-top: 1rem; }
 
 /* Hero Banner */
 .hero-banner {
@@ -354,7 +354,7 @@ img {
 .fabric-overlay h3 { color: white; font-size: 1.8rem; }
 
 /* Footer */
-.main-footer { background: #1a1e2e; color: #aeb4c0; padding: 5rem 0 2rem; margin-top: 5rem; }
+.main-footer { background: #1a1e2e; color: #aeb4c0; padding: 3rem 0 2rem; margin-top: 3rem; }
 .footer-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 4rem; }
 .footer-brand h3 { color: white; font-size: 1.8rem; margin-bottom: 1rem; }
 .footer-links h4 { color: white; margin-bottom: 1.5rem; font-size: 0.9rem; letter-spacing: 1px; }
@@ -409,7 +409,7 @@ img {
   letter-spacing: 1px;
   color: hsl(var(--secondary));
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.25rem;
 }
 
 /* Category Cards */
@@ -1471,7 +1471,7 @@ code { background: hsl(var(--bg-soft)); padding: 0.15rem 0.4rem; border-radius: 
 .fabric-overlay h3 { color: white; font-size: 1.8rem; }
 
 /* Footer */
-.main-footer { background: #1a1e2e; color: #aeb4c0; padding: 5rem 0 2rem; margin-top: 5rem; }
+.main-footer { background: #1a1e2e; color: #aeb4c0; padding: 3rem 0 2rem; margin-top: 3rem; }
 .footer-grid { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 4rem; }
 .footer-brand h3 { color: white; font-size: 1.8rem; margin-bottom: 1rem; }
 .footer-links h4 { color: white; margin-bottom: 1.5rem; font-size: 0.9rem; letter-spacing: 1px; }
